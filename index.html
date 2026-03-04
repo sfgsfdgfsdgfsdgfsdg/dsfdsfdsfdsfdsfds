@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BOND 008: Paris Flashpoint Protocol</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: rgba(12, 17, 26, 0.86);
+      --accent: #dbe7ff;
+      --danger: #ff5a5a;
+      --good: #7dffb2;
+      --steel: #a6afbf;
+      --gold: #ffd980;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, #1d2433, var(--bg) 70%);
+      color: #f3f6ff;
+      font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+    }
+    #gameCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      image-rendering: auto;
+    }
+    .hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 18px;
+    }
+    .topBar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+      backdrop-filter: blur(4px);
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+    .agentCard {
+      width: min(470px, 94vw);
+      display: grid;
+      grid-template-columns: 86px 1fr;
+      gap: 12px;
+    }
+    .portrait {
+      width: 86px;
+      height: 104px;
+      border-radius: 10px;
+      background: linear-gradient(170deg, #f1be9a 0%, #d59062 62%, #48342c 100%);
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.24);
+    }
+    .portrait::before {
+      content: "";
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: 70px;
+      height: 36px;
+      background: #0a0d13;
+      border-radius: 20px 20px 8px 8px;
+      box-shadow: 0 3px 0 rgba(255,255,255,0.07) inset;
+    }
+    .portrait::after {
+      content: "";
+      position: absolute;
+      top: 38px;
+      left: 12px;
+      width: 62px;
+      height: 16px;
+      background: linear-gradient(90deg, #060708 0%, #151922 50%, #060708 100%);
+      border-radius: 9px;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.08);
+    }
+    .meta h1 {
+      margin: 0;
+      font-size: 1rem;
+      letter-spacing: 0.12em;
+    }
+    .meta p {
+      margin: 2px 0;
+      font-size: 0.84rem;
+      color: #d8def0;
+    }
+    .meta .gear {
+      color: #eff4ff;
+      font-weight: 600;
+      line-height: 1.25;
+      margin-top: 4px;
+    }
+    .missionPanel {
+      width: min(520px, 94vw);
+      justify-self: end;
+    }
+    .missionPanel h2 {
+      margin: 0 0 6px;
+      font-size: 0.95rem;
+      letter-spacing: 0.1em;
+      color: var(--gold);
+    }
+    .missionPanel p { margin: 0; font-size: 0.88rem; line-height: 1.36; }
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-shadow: 0 2px 3px rgba(0,0,0,0.65);
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .ok { background: var(--good); }
+    .warn { background: var(--danger); }
+    .crosshair {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 20px;
+      height: 20px;
+      transform: translate(-50%, -50%);
+      opacity: 0.75;
+    }
+    .crosshair::before, .crosshair::after {
+      content: "";
+      position: absolute;
+      background: #fff;
+      box-shadow: 0 0 10px rgba(255,255,255,0.5);
+    }
+    .crosshair::before { left: 9px; top: 0; width: 2px; height: 20px; }
+    .crosshair::after { left: 0; top: 9px; width: 20px; height: 2px; }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at center, rgba(8, 10, 15, 0.25), rgba(2,3,5,0.95));
+      z-index: 10;
+      transition: opacity 600ms ease;
+    }
+    .overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .brief {
+      width: min(720px, 94vw);
+      background: rgba(5, 9, 15, 0.93);
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 18px;
+      padding: 24px;
+      box-shadow: 0 30px 40px rgba(0,0,0,0.45);
+    }
+    .brief h3 { margin-top: 0; letter-spacing: .12em; }
+    .brief button {
+      margin-top: 14px;
+      pointer-events: auto;
+      border: 0;
+      padding: 12px 16px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      border-radius: 10px;
+      background: #f7fbff;
+      color: #11161f;
+      cursor: pointer;
+    }
+    .brief ul { padding-left: 20px; }
+    .barrel {
+      position: fixed;
+      inset: 0;
+      z-index: 12;
+      pointer-events: none;
+      background: radial-gradient(circle at center,
+        transparent 0 12%,
+        #0f1117 12% 16%,
+        #11141d 16% 20%,
+        #0b0d12 20% 100%);
+      clip-path: circle(0% at 50% 50%);
+      transition: clip-path 1400ms cubic-bezier(.2,.75,.15,1);
+    }
+    .barrel.active { clip-path: circle(75% at 50% 50%); }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div class="hud">
+    <div class="topBar">
+      <section class="panel agentCard">
+        <div class="portrait" aria-hidden="true"></div>
+        <div class="meta">
+          <h1>AGENT ARIN BOND // 008</h1>
+          <p>International Agency: Meridian Directorate</p>
+          <p>Identity Profile: East Asian male • light-medium warm undertone • swept-back black hair • dark sunglasses</p>
+          <p class="gear">Uniform: white metallic leather jumpsuit with black shoulder & hip accents, black metallic leather gloves, black metallic leather ankle boots.</p>
+        </div>
+      </section>
+      <section class="panel missionPanel">
+        <h2>EPISODE BRIEF // PARIS</h2>
+        <p id="missionText">Loading mission packet…</p>
+      </section>
+    </div>
+    <div></div>
+    <div class="status panel">
+      <span><span class="dot ok"></span>Stamina: <span id="stamina">100</span></span>
+      <span><span class="dot warn"></span>Tension: <span id="tension">15</span></span>
+      <span>Episode: <span id="episode">1</span></span>
+      <span>Countdown: <span id="timer">120</span>s</span>
+      <span>Objective Range: <span id="range">--</span></span>
+    </div>
+  </div>
+  <div class="crosshair"></div>
+
+  <div id="overlay" class="overlay">
+    <article class="brief">
+      <h3>BARREL REVEAL // BOND 008</h3>
+      <p>You are Agent Arin Bond (Codename 008), field operative of the Meridian Directorate. Every episode is a high-tension personal mission in everyday Paris settings—cafés, apartments, rail corridors, rooftops, and markets. No terrorism, corruption, criminal syndicates, or rogue agency arcs: only intimate relationship-driven crises requiring physical precision and explosive action responses.</p>
+      <ul>
+        <li>WASD: move, Arrow Left/Right: turn, Shift: sprint</li>
+        <li>E: secure objective when close</li>
+        <li>Complete objective before countdown reaches zero</li>
+      </ul>
+      <button id="startBtn">INITIATE EPISODE</button>
+    </article>
+  </div>
+  <div id="barrel" class="barrel"></div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const overlay = document.getElementById('overlay');
+    const barrel = document.getElementById('barrel');
+    const startBtn = document.getElementById('startBtn');
+    const missionText = document.getElementById('missionText');
+
+    const staminaEl = document.getElementById('stamina');
+    const tensionEl = document.getElementById('tension');
+    const timerEl = document.getElementById('timer');
+    const episodeEl = document.getElementById('episode');
+    const rangeEl = document.getElementById('range');
+
+    const TILE = 1;
+    const map = [
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+      [1,0,1,1,1,0,0,1,0,1,1,1,0,1,0,1],
+      [1,0,0,0,1,0,0,0,0,0,0,1,0,1,0,1],
+      [1,1,1,0,1,0,1,1,1,1,0,1,0,1,0,1],
+      [1,0,0,0,1,0,0,0,0,1,0,0,0,1,0,1],
+      [1,0,1,1,1,1,1,1,0,1,1,1,0,1,0,1],
+      [1,0,0,0,0,0,0,1,0,0,0,1,0,0,0,1],
+      [1,0,1,1,1,1,0,1,1,1,0,1,1,1,0,1],
+      [1,0,0,0,0,1,0,0,0,1,0,0,0,0,0,1],
+      [1,1,1,1,0,1,1,1,0,1,1,1,1,1,0,1],
+      [1,0,0,1,0,0,0,1,0,0,0,0,0,1,0,1],
+      [1,0,0,1,1,1,0,1,1,1,1,1,0,1,0,1],
+      [1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+      [1,0,1,1,1,1,1,1,1,1,0,0,0,1,0,1],
+      [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    ];
+
+    const objectives = [
+      { x: 13.5, y: 2.5, zone: 'Bookshop Arc', icon: 'DOSSIER CHIP' },
+      { x: 2.5, y: 13.5, zone: 'Metro Platform', icon: 'KINETIC KEY' },
+      { x: 8.5, y: 7.5, zone: 'Rooftop Laundry Line', icon: 'SIGNAL NODE' },
+      { x: 4.5, y: 9.5, zone: 'Canal Footbridge', icon: 'PASSPORT LOCKBOX' },
+      { x: 11.5, y: 14.5, zone: 'Flower Market', icon: 'ARCHIVE RING' },
+    ];
+
+    const missionPool = {
+      contacts: ['former classmate', 'younger cousin', 'estranged mentor', 'trusted neighbor', 'family friend'],
+      motivations: ['repair trust', 'protect a private promise', 'recover a personal keepsake', 'prevent emotional fallout', 'stabilize a fragile reunion'],
+      actions: ['high-speed stairwell pursuit', 'explosive tram jump', 'window-to-window traversal', 'sudden roofline sprint', 'courtyard blast-dodge sequence'],
+      everyday: ['late-night café district', 'residential apartment lanes', 'weekday produce market', 'quiet commuter tunnel', 'rainy riverside walkway'],
+    };
+
+    const player = { x: 1.8, y: 1.8, a: 0.2, speed: 0.05, stamina: 100, tension: 15 };
+    const keys = {};
+    let episode = 1;
+    let timer = 120;
+    let activeObjective = objectives[0];
+    let running = false;
+    let last = performance.now();
+
+    function resize() {
+      canvas.width = innerWidth;
+      canvas.height = innerHeight;
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    function wallAt(x, y) {
+      const gx = Math.floor(x), gy = Math.floor(y);
+      if (gy < 0 || gy >= map.length || gx < 0 || gx >= map[0].length) return true;
+      return map[gy][gx] === 1;
+    }
+
+    function buildMission() {
+      const c = missionPool.contacts[(episode * 2) % missionPool.contacts.length];
+      const m = missionPool.motivations[(episode * 3 + 1) % missionPool.motivations.length];
+      const a = missionPool.actions[(episode * 5 + 2) % missionPool.actions.length];
+      const e = missionPool.everyday[(episode * 7 + 3) % missionPool.everyday.length];
+      missionText.textContent = `Episode ${episode}: In Paris ${e}, support your ${c} to ${m}. Retrieve the ${activeObjective.icon} at ${activeObjective.zone}, then extract through a ${a}. Situation is personal, covert, and highly malicious in intent against your contact with no public visibility.`;
+    }
+
+    function move() {
+      const sprinting = keys['Shift'] && player.stamina > 5;
+      const speed = player.speed * (sprinting ? 1.8 : 1);
+      if (sprinting) player.stamina = Math.max(0, player.stamina - 0.6);
+      else player.stamina = Math.min(100, player.stamina + 0.3);
+
+      if (keys['ArrowLeft']) player.a -= 0.045;
+      if (keys['ArrowRight']) player.a += 0.045;
+
+      let dx = 0, dy = 0;
+      if (keys['w'] || keys['W']) { dx += Math.cos(player.a) * speed; dy += Math.sin(player.a) * speed; }
+      if (keys['s'] || keys['S']) { dx -= Math.cos(player.a) * speed * 0.8; dy -= Math.sin(player.a) * speed * 0.8; }
+      if (keys['a'] || keys['A']) { dx += Math.cos(player.a - Math.PI/2) * speed * 0.75; dy += Math.sin(player.a - Math.PI/2) * speed * 0.75; }
+      if (keys['d'] || keys['D']) { dx += Math.cos(player.a + Math.PI/2) * speed * 0.75; dy += Math.sin(player.a + Math.PI/2) * speed * 0.75; }
+
+      const nx = player.x + dx;
+      const ny = player.y + dy;
+      if (!wallAt(nx, player.y)) player.x = nx;
+      if (!wallAt(player.x, ny)) player.y = ny;
+
+      const dist = Math.hypot(activeObjective.x - player.x, activeObjective.y - player.y);
+      rangeEl.textContent = dist.toFixed(1) + 'm';
+      player.tension = Math.min(99, Math.max(5, Math.round(15 + (35 / (dist + 0.2)) + (sprinting ? 7 : 0))));
+
+      if (keys['e'] || keys['E']) {
+        if (dist < 1.1) {
+          episode++;
+          episodeEl.textContent = episode;
+          timer = 120;
+          activeObjective = objectives[episode % objectives.length];
+          player.tension = Math.min(95, player.tension + 4);
+          buildMission();
+        }
+      }
+    }
+
+    function castRays() {
+      const fov = Math.PI / 3;
+      const rays = Math.min(420, Math.floor(canvas.width / 3));
+
+      ctx.fillStyle = '#2a3245';
+      ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+      ctx.fillStyle = '#151a24';
+      ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+
+      for (let i = 0; i < rays; i++) {
+        const rayA = player.a - fov / 2 + (i / rays) * fov;
+        const step = 0.02;
+        let dist = 0;
+        let hit = false;
+
+        while (!hit && dist < 20) {
+          dist += step;
+          const tx = player.x + Math.cos(rayA) * dist;
+          const ty = player.y + Math.sin(rayA) * dist;
+          if (wallAt(tx, ty)) hit = true;
+        }
+
+        const corrected = dist * Math.cos(rayA - player.a);
+        const wallH = Math.min(canvas.height, (canvas.height / (corrected + 0.0001)) * 0.95);
+        const shade = Math.max(35, 220 - corrected * 24);
+        ctx.fillStyle = `rgb(${shade}, ${shade + 8}, ${shade + 30})`;
+        const x = i * (canvas.width / rays);
+        const w = (canvas.width / rays) + 1;
+        ctx.fillRect(x, (canvas.height - wallH) / 2, w, wallH);
+      }
+
+      // Objective flare
+      const ox = activeObjective.x - player.x;
+      const oy = activeObjective.y - player.y;
+      const od = Math.hypot(ox, oy);
+      const oa = Math.atan2(oy, ox) - player.a;
+      const normalized = Math.atan2(Math.sin(oa), Math.cos(oa));
+      if (Math.abs(normalized) < fov / 2 && od < 16) {
+        const sx = (normalized / (fov / 2)) * (canvas.width / 2) + canvas.width / 2;
+        const size = Math.max(10, 180 / od);
+        const sy = canvas.height / 2;
+        const pulse = 0.6 + Math.sin(performance.now() * 0.01) * 0.4;
+        ctx.fillStyle = `rgba(255, 231, 141, ${0.6 * pulse})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function loop(now) {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+
+      if (running) {
+        timer -= dt;
+        if (timer <= 0) {
+          timer = 120;
+          player.x = 1.8;
+          player.y = 1.8;
+          player.tension = 55;
+        }
+
+        move();
+        castRays();
+        staminaEl.textContent = player.stamina.toFixed(0);
+        tensionEl.textContent = player.tension.toFixed(0);
+        timerEl.textContent = timer.toFixed(0);
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    addEventListener('keydown', (e) => keys[e.key] = true);
+    addEventListener('keyup', (e) => keys[e.key] = false);
+
+    startBtn.addEventListener('click', () => {
+      barrel.classList.add('active');
+      setTimeout(() => {
+        overlay.classList.add('hidden');
+        running = true;
+        buildMission();
+      }, 1250);
+    });
+
+    buildMission();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

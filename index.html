@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operation Seine: Episode Generator</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="introOverlay" class="overlay">
+    <canvas id="barrelCanvas" width="900" height="500" aria-label="Gun barrel intro animation"></canvas>
+    <div class="intro-panel">
+      <h1>OPERATION SEINE</h1>
+      <p>Agent: Kenji Bond</p>
+      <p>Codename: E-005</p>
+      <p>
+        Eastern Asian field operative, warm light-medium undertones, black swept-back hair, sunglasses,
+        white metallic leather jumpsuit with black accents, metallic gloves and ankle boots.
+      </p>
+      <p>International agency: Helios Directorate.</p>
+      <button id="startBtn">Begin Episode</button>
+    </div>
+  </div>
+
+  <div id="hud">
+    <div id="episodeText">Episode loading...</div>
+    <div id="stats">
+      <span>Stability: <strong id="stability">100</strong>%</span>
+      <span>Time: <strong id="timer">180</strong>s</span>
+      <span>Threat Nodes: <strong id="nodes">0</strong></span>
+    </div>
+    <div id="crosshair">+</div>
+    <div id="tip">WASD move · Mouse look · Click to deploy pulse · Shift sprint · R new episode</div>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent E-006: Paris Field Episodes</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="barrel-sequence" class="active">
+    <div class="gun-barrel">
+      <div class="iris"></div>
+      <div class="agent-card">
+        <h1>AGENT E-006</h1>
+        <p>International Secret Service (ISS)</p>
+        <p>Profile: Eastern Asian male · warm light-medium complexion · black swept-back hair · sunglasses</p>
+        <p>Uniform: white metallic leather jumpsuit, black shoulder/hip accents, black metallic gloves and ankle boots</p>
+      </div>
+    </div>
+    <button id="enter-btn">Enter Field Simulation</button>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div id="mission-panel">
+      <h2>Episode Brief</h2>
+      <p id="mission-text"></p>
+      <p id="objective-text"></p>
+    </div>
+    <div id="status-panel">
+      <span>Health: <strong id="health">100</strong></span>
+      <span>Targets: <strong id="targets">0</strong></span>
+      <span>Episode: <strong id="episode">1</strong></span>
+    </div>
+    <div id="crosshair">+</div>
+    <div id="tip">WASD move · Mouse look · Click shoot · Shift sprint · R new episode</div>
+  </div>
+
+  <div id="end-screen" class="hidden">
+    <h2 id="end-title"></h2>
+    <p id="end-body"></p>
+    <button id="next-btn">Generate Next Standalone Episode</button>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>

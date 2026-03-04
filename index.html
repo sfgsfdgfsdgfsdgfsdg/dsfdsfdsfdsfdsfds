@@ -378,6 +378,8 @@
           attackCooldown: Math.random() * 1.4,
           dead: false,
           fall: 0,
+          removeTimer: 0,
+          stagger: 0,
           knock: new THREE.Vector3()
         };
         scene.add(body);
@@ -413,7 +415,9 @@
         const target = hit.object;
         target.userData.hp -= 1;
         target.userData.hitFlash = 0.15;
-        target.userData.knock.copy(aimDir).multiplyScalar(0.28);
+        target.userData.stagger = 0.22;
+        target.userData.attackCooldown = Math.max(target.userData.attackCooldown, 0.35);
+        target.userData.knock.copy(aimDir).multiplyScalar(0.32);
         spawnHitEffect(hit.point);
       }
     }
@@ -500,9 +504,15 @@
         }
 
         if (data.dead) {
+          data.removeTimer -= 0.016;
           data.fall += 0.035;
           e.rotation.z = Math.min(Math.PI / 2, data.fall);
           e.position.y = Math.max(0.55, e.position.y - 0.02);
+          if (data.removeTimer <= 0) {
+            scene.remove(e);
+            const idx = enemies.indexOf(e);
+            if (idx >= 0) enemies.splice(idx, 1);
+          }
           return;
         }
 
@@ -513,18 +523,19 @@
 
         if (data.hp <= 0) {
           data.dead = true;
+          data.removeTimer = 0.7;
           enemiesRemaining -= 1;
           objective.textContent = `Objective: Neutralize hostile agents (${Math.max(0, enemiesRemaining)} left).`;
-          setTimeout(() => {
-            scene.remove(e);
-            const idx = enemies.indexOf(e);
-            if (idx >= 0) enemies.splice(idx, 1);
-          }, 700);
           if (enemiesRemaining <= 0 && activeMission) {
             episodes += 1;
             activeMission = null;
             objective.textContent = 'Episode complete. Reach a kiosk and press E for next standalone mission.';
           }
+          return;
+        }
+
+        if (data.stagger > 0) {
+          data.stagger -= 0.016;
           return;
         }
 
@@ -535,6 +546,13 @@
         if (dist < 28) {
           data.attackCooldown -= 0.016;
           if (data.attackCooldown <= 0) {
+            raycaster.set(e.position, tmpVec);
+            const blockers = enemies.filter(enemy => enemy !== e && !enemy.userData.dead);
+            const blocked = raycaster.intersectObjects(blockers, false)[0];
+            if (blocked && blocked.distance < dist) {
+              data.attackCooldown = 0.25;
+              return;
+            }
             const orb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff5757 }));
             orb.position.copy(e.position).add(new THREE.Vector3(0, 0.6, 0));
             const spread = new THREE.Vector3((Math.random()-0.5)*0.05, (Math.random()-0.5)*0.03, (Math.random()-0.5)*0.05);
@@ -552,6 +570,11 @@
         const b = enemyBullets[i];
         b.position.add(b.userData.vel);
         b.userData.life -= 0.016;
+        if (b.position.y < 0.2) {
+          scene.remove(b);
+          enemyBullets.splice(i, 1);
+          continue;
+        }
         if (b.position.distanceTo(camera.position) < 0.8) {
           health -= 4;
           spawnHitEffect(b.position);

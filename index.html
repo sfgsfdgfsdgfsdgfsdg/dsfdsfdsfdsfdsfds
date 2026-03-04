@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bond 009: Paris Flash Episodes</title>
+  <style>
+    :root {
+      --bg: #0b0e14;
+      --panel: #141a25;
+      --accent: #f4f7ff;
+      --ink: #0a0a0a;
+      --danger: #ff5b3d;
+      --ok: #66d18f;
+      --gold: #f7d27a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at top, #1b2336 0%, var(--bg) 65%);
+      color: var(--accent);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .app {
+      width: min(1100px, 96vw);
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: 16px;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, #1b2336 0%, #111724 100%);
+      border: 1px solid #2d3648;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .title {
+      margin: 0 0 8px;
+      letter-spacing: 1px;
+      font-size: 1.2rem;
+      text-transform: uppercase;
+    }
+
+    .codename {
+      color: var(--gold);
+      margin: 0 0 10px;
+      font-weight: 700;
+    }
+
+    .status {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 10px;
+      background: #0e1320;
+      border: 1px solid #2a3349;
+      min-height: 104px;
+      line-height: 1.35;
+      font-size: 0.92rem;
+    }
+
+    .metrics {
+      display: grid;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .metric {
+      display: flex;
+      justify-content: space-between;
+      background: #0e1320;
+      border-radius: 8px;
+      padding: 7px 10px;
+      border: 1px solid #2a3349;
+    }
+
+    .controls {
+      font-size: 0.86rem;
+      line-height: 1.45;
+      color: #d9deeb;
+      background: #0e1320;
+      border-radius: 10px;
+      padding: 10px;
+      border: 1px solid #2a3349;
+    }
+
+    canvas {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #111;
+      border-radius: 14px;
+      border: 1px solid #2d3648;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+    }
+
+    .gunbarrel {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      background: #000;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      transition: opacity 0.55s ease;
+    }
+
+    .gunbarrel.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .barrel-ring {
+      width: 150vmax;
+      height: 150vmax;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, transparent 0 15%, rgba(0,0,0,.85) 16% 100%),
+        repeating-radial-gradient(circle, #6b7282 0 3.6%, #3e4558 3.6% 7.2%);
+      transform: scale(0.28);
+      animation: zoom 2.2s ease forwards;
+      position: relative;
+    }
+
+    .iris {
+      position: absolute;
+      width: 22%;
+      height: 22%;
+      background: #000;
+      border-radius: 50%;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      overflow: hidden;
+    }
+
+    .walker {
+      position: absolute;
+      width: 26%;
+      height: 6%;
+      background: #fff;
+      bottom: 24%;
+      left: -30%;
+      animation: walkAcross 1.6s linear forwards;
+      clip-path: polygon(0 80%, 15% 45%, 34% 44%, 42% 7%, 55% 6%, 56% 45%, 79% 44%, 100% 80%, 100% 100%, 0 100%);
+    }
+
+    .shot {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 50% 52%, rgba(255,0,0,.9) 0 34%, rgba(255,0,0,0) 62%);
+      opacity: 0;
+      animation: shotFlash 0.45s 1.5s forwards;
+    }
+
+    .sequence-text {
+      position: absolute;
+      bottom: 8%;
+      text-transform: uppercase;
+      font-size: clamp(0.9rem, 2vw, 1.1rem);
+      letter-spacing: 1px;
+      color: #f3f4f7;
+      opacity: 0;
+      animation: fadeIn 0.4s 1.7s forwards;
+    }
+
+    @keyframes zoom {
+      0% { transform: scale(0.18); }
+      65% { transform: scale(0.37); }
+      100% { transform: scale(0.34); }
+    }
+
+    @keyframes walkAcross {
+      0% { left: -30%; }
+      70% { left: 56%; }
+      100% { left: 56%; transform: rotate(-90deg) translateY(-10%); }
+    }
+
+    @keyframes shotFlash {
+      0% { opacity: 0; }
+      35% { opacity: 1; }
+      100% { opacity: 0.92; }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .btn {
+      width: 100%;
+      margin-top: 10px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(120deg, #3f63f2, #7592ff);
+      color: #fff;
+      font-weight: 700;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .btn:hover { filter: brightness(1.1); }
+  </style>
+</head>
+<body>
+  <div class="gunbarrel" id="gunbarrel">
+    <div class="barrel-ring">
+      <div class="iris">
+        <div class="walker"></div>
+        <div class="shot"></div>
+      </div>
+    </div>
+    <div class="sequence-text">Agent Takumi Bond // Code 009</div>
+  </div>
+
+  <main class="app">
+    <section class="panel">
+      <h1 class="title">Paris Flash Episodes</h1>
+      <p class="codename">Agent: Takumi Bond &mdash; Code 009</p>
+      <div class="metrics">
+        <div class="metric"><span>Episode</span><strong id="episodeNo">1</strong></div>
+        <div class="metric"><span>Stamina</span><strong id="hp">100</strong></div>
+        <div class="metric"><span>Mission Clock</span><strong id="timer">120</strong></div>
+        <div class="metric"><span>Objective</span><strong id="objectiveCounter">0 / 0</strong></div>
+      </div>
+      <div id="missionText" class="status"></div>
+      <button id="nextMission" class="btn">Generate New Standalone Episode</button>
+      <div class="controls">
+        <strong>Controls</strong><br/>
+        Move: <strong>WASD / Arrow Keys</strong><br/>
+        Close strike: <strong>Space</strong><br/>
+        Dash burst: <strong>Shift</strong><br/>
+        Tactical pause: <strong>P</strong><br/>
+        <br/>
+        Antagonists are malicious but unarmed. Missions are tense, personal, and isolated.
+      </div>
+    </section>
+
+    <canvas id="game" width="960" height="540"></canvas>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const missionText = document.getElementById('missionText');
+    const hpText = document.getElementById('hp');
+    const timerText = document.getElementById('timer');
+    const objText = document.getElementById('objectiveCounter');
+    const episodeNoText = document.getElementById('episodeNo');
+
+    const keys = new Set();
+    let paused = false;
+
+    const parisLocations = [
+      'Belleville laundromat block',
+      'Canal Saint-Martin morning market',
+      'Montparnasse commuter café row',
+      'Rue Cler grocery lane',
+      'Bastille scooter parking court',
+      'Batignolles florist district'
+    ];
+
+    const personalMotives = [
+      'a bitter sibling inheritance feud',
+      'a vindictive former mentor dispute',
+      'a severed family partnership conflict',
+      'a toxic custody rivalry',
+      'an obsessive breakup retaliation',
+      'a private reputation vendetta'
+    ];
+
+    const objectiveTemplates = [
+      'Secure three memory drives before they are burned in courier bins',
+      'Evacuate civilians from volatile delivery trucks and freeze the trigger network',
+      'Intercept blackmail packets and lock emergency shutters',
+      'Disable sabotage charges hidden in service kiosks',
+      'Recover encrypted ledger pages and seal all exits'
+    ];
+
+    let episode = 1;
+    let state;
+
+    function makeAgent() {
+      return {
+        x: 130,
+        y: 260,
+        r: 16,
+        speed: 3.1,
+        hp: 100,
+        strikeCooldown: 0,
+        dashCooldown: 0,
+        invuln: 0
+      };
+    }
+
+    function createMission() {
+      const location = randomPick(parisLocations);
+      const motive = randomPick(personalMotives);
+      const objectiveLine = randomPick(objectiveTemplates);
+
+      const objectives = [];
+      const objectiveCount = 4;
+      for (let i = 0; i < objectiveCount; i++) {
+        objectives.push({
+          x: 170 + Math.random() * 730,
+          y: 50 + Math.random() * 430,
+          active: true,
+          radius: 13
+        });
+      }
+
+      const antagonists = [];
+      for (let i = 0; i < 7; i++) {
+        antagonists.push({
+          x: 250 + Math.random() * 660,
+          y: 50 + Math.random() * 430,
+          r: 14,
+          speed: 1.3 + Math.random() * 0.6,
+          hp: 3,
+          hitCd: 0
+        });
+      }
+
+      const barrels = [];
+      for (let i = 0; i < 8; i++) {
+        barrels.push({ x: 220 + Math.random() * 670, y: 40 + Math.random() * 460, exploded: false, radius: 15 });
+      }
+
+      missionText.innerHTML =
+        `<strong>Episode ${episode}</strong><br>` +
+        `Location: ${location}.<br>` +
+        `Conflict root: ${motive}.<br>` +
+        `Directive: ${objectiveLine}.<br>` +
+        `No public spectacle. No comedy. No overarching arc.`;
+
+      return {
+        agent: makeAgent(),
+        antagonists,
+        objectives,
+        barrels,
+        effects: [],
+        completed: 0,
+        time: 120,
+        finished: false,
+        outcome: ''
+      };
+    }
+
+    function randomPick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function dist(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function spawnExplosion(x, y, power = 90) {
+      state.effects.push({ x, y, r: 5, max: power, life: 24 });
+      state.antagonists.forEach(e => {
+        if (e.hp > 0) {
+          const d = Math.hypot(e.x - x, e.y - y);
+          if (d < power) e.hp = 0;
+        }
+      });
+      const dA = Math.hypot(state.agent.x - x, state.agent.y - y);
+      if (dA < power && state.agent.invuln <= 0) {
+        state.agent.hp = Math.max(0, state.agent.hp - Math.ceil((power - dA) / 10));
+        state.agent.invuln = 24;
+      }
+    }
+
+    function handleInput() {
+      const a = state.agent;
+      let dx = 0;
+      let dy = 0;
+
+      if (keys.has('w') || keys.has('arrowup')) dy -= 1;
+      if (keys.has('s') || keys.has('arrowdown')) dy += 1;
+      if (keys.has('a') || keys.has('arrowleft')) dx -= 1;
+      if (keys.has('d') || keys.has('arrowright')) dx += 1;
+
+      const len = Math.hypot(dx, dy) || 1;
+      const currentSpeed = (keys.has('shift') && a.dashCooldown <= 0) ? 7.2 : a.speed;
+
+      if (keys.has('shift') && a.dashCooldown <= 0) {
+        a.dashCooldown = 70;
+      }
+
+      a.x += (dx / len) * currentSpeed;
+      a.y += (dy / len) * currentSpeed;
+
+      a.x = Math.max(20, Math.min(canvas.width - 20, a.x));
+      a.y = Math.max(20, Math.min(canvas.height - 20, a.y));
+
+      if (a.strikeCooldown > 0) a.strikeCooldown--;
+      if (a.dashCooldown > 0) a.dashCooldown--;
+      if (a.invuln > 0) a.invuln--;
+    }
+
+    function strike() {
+      const a = state.agent;
+      if (a.strikeCooldown > 0 || state.finished) return;
+      a.strikeCooldown = 18;
+
+      state.antagonists.forEach(e => {
+        if (e.hp > 0 && dist(a, e) < 48) e.hp--;
+      });
+
+      state.objectives.forEach(o => {
+        if (o.active && dist(a, o) < 42) {
+          o.active = false;
+          state.completed++;
+          spawnExplosion(o.x, o.y, 70);
+        }
+      });
+
+      state.barrels.forEach(b => {
+        if (!b.exploded && dist(a, b) < 45) {
+          b.exploded = true;
+          spawnExplosion(b.x, b.y, 110);
+        }
+      });
+    }
+
+    function updateAntagonists() {
+      const a = state.agent;
+      state.antagonists.forEach(e => {
+        if (e.hp <= 0) return;
+        const vx = a.x - e.x;
+        const vy = a.y - e.y;
+        const len = Math.hypot(vx, vy) || 1;
+        e.x += (vx / len) * e.speed;
+        e.y += (vy / len) * e.speed;
+
+        if (e.hitCd > 0) e.hitCd--;
+        if (dist(a, e) < 24 && e.hitCd <= 0 && a.invuln <= 0) {
+          a.hp = Math.max(0, a.hp - 7);
+          e.hitCd = 35;
+          a.invuln = 18;
+        }
+      });
+    }
+
+    function updateEffects() {
+      state.effects.forEach(fx => {
+        fx.life--;
+        fx.r += (fx.max - fx.r) * 0.25;
+      });
+      state.effects = state.effects.filter(fx => fx.life > 0);
+    }
+
+    function updateState() {
+      if (paused || state.finished) return;
+      handleInput();
+      updateAntagonists();
+      updateEffects();
+
+      state.time -= 1 / 60;
+      if (state.agent.hp <= 0) {
+        state.finished = true;
+        state.outcome = 'Mission failed: Agent 009 incapacitated.';
+      } else if (state.completed >= state.objectives.length) {
+        state.finished = true;
+        state.outcome = 'Mission complete: all objectives secured. Episode closed.';
+      } else if (state.time <= 0) {
+        state.finished = true;
+        state.outcome = 'Mission failed: operational window closed.';
+      }
+    }
+
+    function drawEnvironment() {
+      const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      grad.addColorStop(0, '#1f2738');
+      grad.addColorStop(1, '#181f2f');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = '#2f3b58';
+      for (let i = 0; i < 7; i++) {
+        ctx.strokeRect(30 + i * 130, 30 + (i % 3) * 50, 110, 82);
+      }
+      ctx.fillStyle = '#3b475f';
+      ctx.fillRect(0, 220, canvas.width, 100);
+      ctx.fillStyle = '#2b3448';
+      ctx.fillRect(0, 410, canvas.width, 130);
+    }
+
+    function drawAgent(a) {
+      // Warm undertone skin
+      ctx.fillStyle = '#f2bc96';
+      ctx.beginPath();
+      ctx.arc(a.x, a.y - 20, 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Black swept-back hair
+      ctx.fillStyle = '#070707';
+      ctx.beginPath();
+      ctx.ellipse(a.x, a.y - 24, 10, 6, 0, Math.PI, Math.PI * 2);
+      ctx.fill();
+
+      // Sunglasses
+      ctx.fillStyle = '#0f1116';
+      ctx.fillRect(a.x - 8, a.y - 22, 16, 4);
+
+      // White metallic jumpsuit + black accents
+      ctx.fillStyle = '#f7fbff';
+      ctx.fillRect(a.x - 8, a.y - 10, 16, 22);
+      ctx.fillStyle = '#16181e';
+      ctx.fillRect(a.x - 10, a.y - 10, 2, 10);
+      ctx.fillRect(a.x + 8, a.y - 10, 2, 10);
+      ctx.fillRect(a.x - 8, a.y + 8, 4, 4);
+      ctx.fillRect(a.x + 4, a.y + 8, 4, 4);
+
+      // Metallic black gloves and boots
+      ctx.fillStyle = '#0b0d13';
+      ctx.fillRect(a.x - 12, a.y - 2, 4, 7);
+      ctx.fillRect(a.x + 8, a.y - 2, 4, 7);
+      ctx.fillRect(a.x - 7, a.y + 12, 5, 6);
+      ctx.fillRect(a.x + 2, a.y + 12, 5, 6);
+
+      if (a.strikeCooldown > 10) {
+        ctx.strokeStyle = '#f3f6ff';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(a.x, a.y, 34, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+
+    function drawMissionItems() {
+      state.objectives.forEach(o => {
+        if (!o.active) return;
+        ctx.fillStyle = '#7ad0ff';
+        ctx.beginPath();
+        ctx.arc(o.x, o.y, o.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = '#dff7ff';
+        ctx.stroke();
+      });
+
+      state.barrels.forEach(b => {
+        if (b.exploded) return;
+        ctx.fillStyle = '#b05d2c';
+        ctx.fillRect(b.x - 11, b.y - 13, 22, 26);
+        ctx.fillStyle = '#f7be77';
+        ctx.fillRect(b.x - 10, b.y - 2, 20, 4);
+      });
+    }
+
+    function drawAntagonists() {
+      state.antagonists.forEach(e => {
+        if (e.hp <= 0) return;
+        ctx.fillStyle = '#ff6f59';
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.r, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#2c0f0f';
+        ctx.fillRect(e.x - 8, e.y - 3, 16, 6);
+      });
+    }
+
+    function drawEffects() {
+      state.effects.forEach(fx => {
+        const alpha = fx.life / 24;
+        ctx.fillStyle = `rgba(255, 120, 70, ${alpha})`;
+        ctx.beginPath();
+        ctx.arc(fx.x, fx.y, fx.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawOverlay() {
+      if (paused) {
+        ctx.fillStyle = 'rgba(0,0,0,.55)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 38px Segoe UI';
+        ctx.fillText('PAUSED', canvas.width / 2 - 80, canvas.height / 2);
+      }
+
+      if (state.finished) {
+        ctx.fillStyle = 'rgba(0,0,0,.64)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 28px Segoe UI';
+        ctx.fillText(state.outcome, 80, canvas.height / 2);
+        ctx.font = '20px Segoe UI';
+        ctx.fillText('Press "Generate New Standalone Episode" to continue.', 80, canvas.height / 2 + 44);
+      }
+    }
+
+    function render() {
+      drawEnvironment();
+      drawMissionItems();
+      drawAntagonists();
+      drawAgent(state.agent);
+      drawEffects();
+      drawOverlay();
+    }
+
+    function uiSync() {
+      hpText.textContent = String(Math.max(0, Math.round(state.agent.hp)));
+      timerText.textContent = String(Math.max(0, Math.ceil(state.time)));
+      objText.textContent = `${state.completed} / ${state.objectives.length}`;
+      episodeNoText.textContent = String(episode);
+    }
+
+    function loop() {
+      updateState();
+      render();
+      uiSync();
+      requestAnimationFrame(loop);
+    }
+
+    document.addEventListener('keydown', e => {
+      const key = e.key.toLowerCase();
+      keys.add(key);
+      if (key === ' ') {
+        e.preventDefault();
+        strike();
+      }
+      if (key === 'p') paused = !paused;
+    });
+
+    document.addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+
+    document.getElementById('nextMission').addEventListener('click', () => {
+      episode++;
+      state = createMission();
+    });
+
+    state = createMission();
+    loop();
+
+    setTimeout(() => {
+      document.getElementById('gunbarrel').classList.add('hidden');
+    }, 2800);
+  </script>
+</body>
+</html>

@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>00X: Paris Flash Episodes</title>
+  <style>
+    :root {
+      --bg: #07090f;
+      --panel: rgba(8, 12, 22, 0.88);
+      --line: #4ad2ff;
+      --danger: #ff4a66;
+      --good: #7dffb1;
+      --gold: #ffd86c;
+      --text: #f6fbff;
+      --muted: #9ab6ca;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      color: var(--text);
+      background: radial-gradient(circle at 20% 20%, #1a2450 0%, #0a0e18 45%, #05070c 100%);
+      overflow: hidden;
+    }
+
+    #game {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+      cursor: crosshair;
+      background: linear-gradient(#0a1230, #080b13 45%);
+    }
+
+    #hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 14px;
+      gap: 12px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(100, 205, 255, 0.4);
+      backdrop-filter: blur(5px);
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 0 16px rgba(0, 170, 255, 0.2);
+      max-width: 430px;
+      pointer-events: auto;
+    }
+
+    .title {
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      font-size: 0.84rem;
+      color: var(--line);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .stat-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      font-size: 0.9rem;
+    }
+
+    .chip {
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      padding: 4px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    #missionBrief {
+      line-height: 1.34;
+      font-size: 0.95rem;
+      color: #eaf5ff;
+      min-width: 260px;
+    }
+
+    #barrelReveal {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      display: grid;
+      place-items: center;
+      background: radial-gradient(circle at 50% 55%, rgba(250, 250, 250, 0.06), rgba(0, 0, 0, 0.97));
+      transition: opacity 650ms ease;
+    }
+
+    #barrelCanvas {
+      width: min(78vmin, 720px);
+      height: min(78vmin, 720px);
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: inset 0 0 90px rgba(0, 0, 0, 0.88), 0 0 36px rgba(48, 197, 255, 0.18);
+      background: rgba(3, 6, 11, 0.95);
+    }
+
+    #introCard {
+      position: absolute;
+      text-align: center;
+      width: min(78vmin, 720px);
+      pointer-events: none;
+    }
+
+    #agentPortrait {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      margin: 0 auto 14px;
+      background:
+        radial-gradient(circle at 55% 30%, rgba(255, 209, 161, 0.85) 0 19%, rgba(173, 105, 57, 0.36) 22%, transparent 40%),
+        radial-gradient(circle at 33% 28%, #101018 0 17%, transparent 19%),
+        radial-gradient(circle at 67% 28%, #101018 0 17%, transparent 19%),
+        linear-gradient(to bottom, #101015 0 25%, transparent 26%),
+        linear-gradient(to bottom, #f4d4b9 0 100%);
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.14);
+      position: relative;
+      overflow: hidden;
+    }
+
+    #agentPortrait::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(115deg, transparent 40%, rgba(255, 255, 255, 0.42) 54%, transparent 68%);
+      animation: sweep 2.1s linear infinite;
+    }
+
+    @keyframes sweep {
+      from { transform: translateX(-135%); }
+      to { transform: translateX(135%); }
+    }
+
+    #introText {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      line-height: 1.55;
+      text-shadow: 0 0 16px rgba(0, 0, 0, 0.9);
+      color: #f4f9ff;
+    }
+
+    #controls {
+      position: fixed;
+      right: 14px;
+      bottom: 14px;
+      z-index: 6;
+      max-width: 420px;
+      font-size: 0.88rem;
+    }
+
+    #episodeBanner {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 300ms;
+    }
+
+    #episodeBanner.show { opacity: 1; }
+
+    #episodeBanner span {
+      background: rgba(4, 8, 16, 0.9);
+      border: 1px solid rgba(255, 216, 108, 0.7);
+      color: #ffe9b0;
+      padding: 14px 18px;
+      border-radius: 9px;
+      text-transform: uppercase;
+      font-size: 1.05rem;
+      letter-spacing: 0.12em;
+      box-shadow: 0 0 20px rgba(255, 214, 80, 0.2);
+    }
+
+    .hp {
+      width: 150px;
+      height: 9px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .hp > i {
+      display: block;
+      height: 100%;
+      background: linear-gradient(90deg, #ff5f62, #ff886a, #ffd56d);
+      width: 100%;
+      transition: width 160ms;
+    }
+
+    button {
+      border: 1px solid rgba(128, 217, 255, 0.7);
+      background: linear-gradient(180deg, rgba(19, 44, 77, 0.88), rgba(9, 17, 31, 0.95));
+      color: #e6f8ff;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    button:hover { filter: brightness(1.12); }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <section id="barrelReveal">
+    <canvas id="barrelCanvas" width="820" height="820"></canvas>
+    <div id="introCard">
+      <div id="agentPortrait" aria-hidden="true"></div>
+      <div id="introText">
+        Agent Jun Bond<br />
+        Codename 0097<br />
+        International Agency: Aegis Meridian
+      </div>
+    </div>
+  </section>
+
+  <section id="hud">
+    <div class="panel">
+      <div class="title">Agent Status</div>
+      <div class="stat-row">
+        <span class="chip">Name: Jun Bond</span>
+        <span class="chip">Codename: 0097</span>
+        <span class="chip">Agency: Aegis Meridian</span>
+      </div>
+      <div style="margin-top:8px; font-size:0.9rem; color:var(--muted)">Suit: white metallic leather jumpsuit, black shoulder/hip accents, metallic black gloves + ankle boots, swept-back black hair, mirrored sunglasses.</div>
+      <div style="margin-top:8px; font-size:0.86rem; color:#b8d9ef;">Mission chain is independent by episode. No overarching plot.</div>
+    </div>
+
+    <div class="panel" id="missionPanel">
+      <div class="title">Current Episode</div>
+      <div id="missionBrief"></div>
+      <div style="margin-top:8px; display:flex; align-items:center; gap:10px;">
+        <div style="font-size:0.84rem; color:#ffccd8">Integrity</div>
+        <div class="hp"><i id="playerHpFill"></i></div>
+      </div>
+      <div style="margin-top:8px; display:flex; gap:8px;">
+        <button id="nextMissionBtn" type="button">Generate New Episode</button>
+      </div>
+    </div>
+  </section>
+
+  <div id="episodeBanner"><span id="episodeBannerText"></span></div>
+
+  <section class="panel" id="controls">
+    <div class="title">Controls</div>
+    <div>WASD/Arrows: move · Shift: dash · Space: kinetic burst · Enter: complete extraction zone</div>
+    <div style="margin-top:6px; color:#bcd7ea">No weapons, no criminal/terrorism arc: confront malicious personal saboteurs through pure physical action in everyday Paris streets.</div>
+  </section>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const missionBrief = document.getElementById('missionBrief');
+    const hpFill = document.getElementById('playerHpFill');
+    const episodeBanner = document.getElementById('episodeBanner');
+    const episodeBannerText = document.getElementById('episodeBannerText');
+    const nextMissionBtn = document.getElementById('nextMissionBtn');
+    const barrelReveal = document.getElementById('barrelReveal');
+    const barrelCanvas = document.getElementById('barrelCanvas');
+    const barrelCtx = barrelCanvas.getContext('2d');
+
+    const game = {
+      t: 0,
+      started: false,
+      running: true,
+      score: 0,
+      episode: 0,
+      timeLeft: 90,
+      mission: null,
+      keys: {},
+      shake: 0,
+      explosions: [],
+      enemies: [],
+      props: [],
+      extraction: { x: 0, z: 0, radius: 4 },
+      player: {
+        x: 0,
+        z: 18,
+        vx: 0,
+        vz: 0,
+        hp: 100,
+        burstCd: 0,
+        dashCd: 0,
+        inv: 0
+      }
+    };
+
+    const parisScenery = ['bakery terrace', 'metro entrance', 'flower kiosk', 'book stall', 'small grocery lane', 'rainy apartment courtyard', 'tram stop', 'river walkway'];
+    const targetRoles = ['malicious courier rival', 'obsessive ex-contact', 'vengeful logistics handler', 'silent tracker', 'black-market-free saboteur', 'disavowed personal rival'];
+    const motivations = ['personal jealousy', 'family grudge', 'professional humiliation', 'old betrayal', 'status obsession', 'private revenge'];
+    const missionActions = ['stabilize a blown transit relay', 'secure a compromised embassy delivery route', 'recover stolen peace-conference credentials', 'extract civilian analysts from a blocked avenue', 'neutralize sabotage in a commuter hub', 'protect a diplomatic cultural convoy'];
+
+    function resize() {
+      canvas.width = innerWidth;
+      canvas.height = innerHeight;
+    }
+    addEventListener('resize', resize);
+    resize();
+
+    function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    function generateMission() {
+      game.episode += 1;
+      game.timeLeft = 85 + Math.floor(Math.random() * 25);
+      game.player.x = 0;
+      game.player.z = 18;
+      game.player.vx = 0;
+      game.player.vz = 0;
+      game.player.hp = Math.max(68, game.player.hp + 16);
+
+      const mission = {
+        location: rand(parisScenery),
+        role: rand(targetRoles),
+        motive: rand(motivations),
+        objective: rand(missionActions),
+        threatLevel: 3 + Math.floor(Math.random() * 4),
+      };
+      game.mission = mission;
+
+      game.enemies = [];
+      const enemyCount = mission.threatLevel + 2;
+      for (let i = 0; i < enemyCount; i++) {
+        game.enemies.push({
+          x: (Math.random() - 0.5) * 54,
+          z: -20 - Math.random() * 130,
+          hp: 26 + Math.random() * 22,
+          speed: 0.10 + Math.random() * 0.15,
+          side: Math.random() > 0.5 ? 1 : -1,
+          attackCd: Math.random() * 1.8,
+          flash: 0
+        });
+      }
+
+      game.props = [];
+      for (let i = 0; i < 90; i++) {
+        game.props.push({
+          x: (Math.random() - 0.5) * 90,
+          z: -Math.random() * 240,
+          kind: Math.random() > 0.7 ? 'scooter' : (Math.random() > 0.4 ? 'table' : 'lamp'),
+          wobble: Math.random() * Math.PI * 2
+        });
+      }
+
+      game.extraction = {
+        x: (Math.random() - 0.5) * 22,
+        z: -155 - Math.random() * 45,
+        radius: 5.6
+      };
+
+      missionBrief.innerHTML = `Episode ${game.episode}: Paris ${mission.location}.<br>
+      Objective: ${mission.objective}.<br>
+      Antagonistic profile: ${mission.role} driven by ${mission.motive}.<br>
+      Tone: urgent and light-scope. Independent operation with no cliffhanger.`;
+
+      episodeBannerText.textContent = `Episode ${game.episode} // ${mission.location.toUpperCase()}`;
+      episodeBanner.classList.add('show');
+      setTimeout(() => episodeBanner.classList.remove('show'), 1700);
+    }
+
+    function update(dt) {
+      if (!game.running || !game.started) return;
+      const p = game.player;
+      const accel = game.keys.Shift ? 17 : 11;
+      const friction = 0.85;
+
+      let ix = 0, iz = 0;
+      if (game.keys.w || game.keys.ArrowUp) iz -= 1;
+      if (game.keys.s || game.keys.ArrowDown) iz += 1;
+      if (game.keys.a || game.keys.ArrowLeft) ix -= 1;
+      if (game.keys.d || game.keys.ArrowRight) ix += 1;
+
+      const mag = Math.hypot(ix, iz) || 1;
+      p.vx += (ix / mag) * accel * dt;
+      p.vz += (iz / mag) * accel * dt;
+
+      if (game.keys.Shift && p.dashCd <= 0) {
+        p.vz -= 9;
+        p.dashCd = 0.9;
+        game.shake = 0.35;
+      }
+
+      p.vx *= friction;
+      p.vz *= friction;
+      p.x += p.vx;
+      p.z += p.vz;
+      p.x = Math.max(-30, Math.min(30, p.x));
+      p.z = Math.max(-250, Math.min(35, p.z));
+
+      if (p.burstCd > 0) p.burstCd -= dt;
+      if (p.dashCd > 0) p.dashCd -= dt;
+      if (p.inv > 0) p.inv -= dt;
+
+      if (game.keys[' '] && p.burstCd <= 0) {
+        p.burstCd = 1.2;
+        game.shake = 0.6;
+        game.explosions.push({ x: p.x, z: p.z - 4, r: 1, age: 0 });
+        for (const e of game.enemies) {
+          const d = Math.hypot(e.x - p.x, e.z - p.z);
+          if (d < 15) {
+            const f = (15 - d) * 1.2;
+            e.hp -= f * 3;
+            e.x += ((e.x - p.x) / (d || 1)) * f;
+            e.z += ((e.z - p.z) / (d || 1)) * f;
+            e.flash = 0.2;
+          }
+        }
+      }
+
+      for (const e of game.enemies) {
+        const dx = p.x - e.x;
+        const dz = p.z - e.z;
+        const d = Math.hypot(dx, dz);
+        if (d > 0.5) {
+          e.x += (dx / d) * e.speed * 60 * dt;
+          e.z += (dz / d) * e.speed * 60 * dt;
+        }
+        e.x += Math.sin(game.t * 5 + e.side) * 0.035;
+        if (e.attackCd > 0) e.attackCd -= dt;
+        if (d < 2.3 && e.attackCd <= 0 && p.inv <= 0) {
+          p.hp -= 7;
+          p.inv = 0.5;
+          e.attackCd = 0.8;
+          game.shake = 0.45;
+        }
+        if (e.flash > 0) e.flash -= dt;
+      }
+
+      game.enemies = game.enemies.filter(e => e.hp > 0 && e.z < 50);
+
+      game.explosions.forEach(ex => {
+        ex.age += dt;
+        ex.r += dt * 35;
+      });
+      game.explosions = game.explosions.filter(ex => ex.age < 0.45);
+
+      game.timeLeft -= dt;
+      if (game.player.hp <= 0 || game.timeLeft <= 0) {
+        game.running = false;
+      }
+
+      if (game.keys.Enter) {
+        const dExt = Math.hypot(p.x - game.extraction.x, p.z - game.extraction.z);
+        if (dExt < game.extraction.radius && game.enemies.length === 0) {
+          game.score += 1;
+          generateMission();
+        }
+      }
+
+      hpFill.style.width = `${Math.max(0, game.player.hp)}%`;
+      if (game.shake > 0) game.shake -= dt;
+    }
+
+    function project(x, z) {
+      const camZ = game.player.z + 26;
+      const dz = camZ - z;
+      const scale = 520 / Math.max(12, dz);
+      const sx = canvas.width * 0.5 + x * scale;
+      const sy = canvas.height * 0.2 + (220 - z * 0.2) * scale * 0.12;
+      return { sx, sy, scale, dz };
+    }
+
+    function drawGround() {
+      const grad = ctx.createLinearGradient(0, canvas.height * 0.2, 0, canvas.height);
+      grad.addColorStop(0, '#1d274f');
+      grad.addColorStop(0.55, '#0f1833');
+      grad.addColorStop(1, '#080b12');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, canvas.height * 0.2, canvas.width, canvas.height * 0.8);
+
+      for (let i = 0; i < 90; i++) {
+        const z = -i * 4.5 + ((game.t * 45) % 4.5);
+        const a = project(-35, z);
+        const b = project(35, z);
+        const alpha = Math.max(0, 1 - i / 95);
+        ctx.strokeStyle = `rgba(90,140,255,${0.18 * alpha})`;
+        ctx.beginPath();
+        ctx.moveTo(a.sx, a.sy);
+        ctx.lineTo(b.sx, b.sy);
+        ctx.stroke();
+      }
+
+      for (let x = -7; x <= 7; x++) {
+        const a = project(x * 5, 30);
+        const b = project(x * 5, -240);
+        ctx.strokeStyle = 'rgba(88,180,255,0.1)';
+        ctx.beginPath();
+        ctx.moveTo(a.sx, a.sy);
+        ctx.lineTo(b.sx, b.sy);
+        ctx.stroke();
+      }
+    }
+
+    function drawProp(pr) {
+      const p = project(pr.x, pr.z);
+      if (p.dz < 10 || p.dz > 270) return;
+      const w = p.scale * (pr.kind === 'lamp' ? 0.8 : 1.5);
+      const h = p.scale * (pr.kind === 'lamp' ? 5 : 1.2);
+      const pulse = Math.sin(game.t * 2 + pr.wobble) * 0.2 + 0.8;
+      ctx.save();
+      ctx.translate(p.sx, p.sy);
+      if (pr.kind === 'lamp') {
+        ctx.fillStyle = '#6b7395';
+        ctx.fillRect(-w * 0.2, -h, w * 0.4, h);
+        ctx.fillStyle = `rgba(255,220,130,${0.35 * pulse})`;
+        ctx.beginPath();
+        ctx.arc(0, -h, w * 0.45, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (pr.kind === 'table') {
+        ctx.fillStyle = '#7f5a44';
+        ctx.fillRect(-w, -h * 0.5, w * 2, h * 0.5);
+      } else {
+        ctx.fillStyle = '#d3484f';
+        ctx.fillRect(-w * 0.8, -h * 0.8, w * 1.6, h * 0.8);
+      }
+      ctx.restore();
+    }
+
+    function drawAgent(x, z, isPlayer, hp = 100, flash = 0) {
+      const p = project(x, z);
+      if (p.dz < 8 || p.dz > 280) return;
+      const bodyH = p.scale * 3.4;
+      const bodyW = p.scale * 1.35;
+      ctx.save();
+      ctx.translate(p.sx, p.sy);
+
+      if (isPlayer && game.player.inv > 0) {
+        ctx.globalAlpha = 0.5 + Math.sin(game.t * 40) * 0.5;
+      }
+
+      ctx.fillStyle = isPlayer ? '#f2f5ff' : '#5d667a';
+      ctx.fillRect(-bodyW * 0.5, -bodyH, bodyW, bodyH * 0.75);
+      ctx.fillStyle = isPlayer ? '#1c2028' : '#333846';
+      ctx.fillRect(-bodyW * 0.65, -bodyH * 0.9, bodyW * 0.24, bodyH * 0.28);
+      ctx.fillRect(bodyW * 0.41, -bodyH * 0.9, bodyW * 0.24, bodyH * 0.28);
+      ctx.fillRect(-bodyW * 0.4, -bodyH * 0.24, bodyW * 0.8, bodyH * 0.24);
+
+      ctx.fillStyle = isPlayer ? '#f1cfb1' : '#aaa9ad';
+      ctx.beginPath();
+      ctx.arc(0, -bodyH * 1.12, bodyW * 0.34, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#0f1118';
+      ctx.fillRect(-bodyW * 0.3, -bodyH * 1.16, bodyW * 0.6, bodyW * 0.13);
+
+      ctx.fillStyle = '#0e1016';
+      ctx.fillRect(-bodyW * 0.25, -bodyH * 1.36, bodyW * 0.45, bodyW * 0.16);
+
+      if (!isPlayer) {
+        ctx.fillStyle = flash > 0 ? '#ffd26f' : '#c8354c';
+        ctx.fillRect(-bodyW * 0.44, -bodyH * 0.62, bodyW * 0.88 * (hp / 48), bodyW * 0.11);
+      }
+
+      ctx.restore();
+    }
+
+    function drawExtraction() {
+      const ex = project(game.extraction.x, game.extraction.z);
+      if (ex.dz < 10 || ex.dz > 300) return;
+      const r = ex.scale * game.extraction.radius;
+      ctx.strokeStyle = 'rgba(115,255,180,0.9)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(ex.sx, ex.sy, r, r * 0.38, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(125,255,177,0.12)';
+      ctx.fill();
+    }
+
+    function drawExplosions() {
+      for (const ex of game.explosions) {
+        const p = project(ex.x, ex.z);
+        const rr = ex.r * p.scale * 0.35;
+        const alpha = 1 - ex.age / 0.45;
+        const g = ctx.createRadialGradient(p.sx, p.sy, rr * 0.1, p.sx, p.sy, rr);
+        g.addColorStop(0, `rgba(255,245,205,${0.85 * alpha})`);
+        g.addColorStop(0.55, `rgba(255,120,80,${0.5 * alpha})`);
+        g.addColorStop(1, 'rgba(255,40,40,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(p.sx, p.sy, rr, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawUIOverlay() {
+      ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      ctx.fillRect(canvas.width * 0.5 - 1, canvas.height * 0.5 - 12, 2, 24);
+      ctx.fillRect(canvas.width * 0.5 - 12, canvas.height * 0.5 - 1, 24, 2);
+
+      ctx.fillStyle = '#d8ecff';
+      ctx.font = '600 16px Segoe UI';
+      ctx.fillText(`Episode: ${game.episode}`, 16, canvas.height - 20);
+      ctx.fillText(`Completed: ${game.score}`, 150, canvas.height - 20);
+      ctx.fillStyle = game.timeLeft < 18 ? '#ff8da1' : '#d8ecff';
+      ctx.fillText(`Time: ${Math.max(0, game.timeLeft).toFixed(1)}s`, 290, canvas.height - 20);
+
+      if (!game.running) {
+        ctx.fillStyle = 'rgba(4,8,15,0.84)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#ffdc99';
+        ctx.font = '700 36px Segoe UI';
+        ctx.fillText('Mission Failed', canvas.width * 0.5 - 130, canvas.height * 0.43);
+        ctx.font = '600 20px Segoe UI';
+        ctx.fillStyle = '#f0f6ff';
+        ctx.fillText('Press N to launch a fresh independent episode.', canvas.width * 0.5 - 225, canvas.height * 0.5);
+      }
+    }
+
+    function render() {
+      const sh = game.shake > 0 ? game.shake * 7 : 0;
+      ctx.save();
+      ctx.translate((Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawGround();
+
+      const all = [];
+      for (const pr of game.props) all.push({ z: pr.z, draw: () => drawProp(pr) });
+      for (const e of game.enemies) all.push({ z: e.z, draw: () => drawAgent(e.x, e.z, false, e.hp, e.flash) });
+      all.push({ z: game.extraction.z, draw: drawExtraction });
+      all.push({ z: game.player.z, draw: () => drawAgent(game.player.x, game.player.z, true) });
+      all.sort((a, b) => a.z - b.z);
+      all.forEach(o => o.draw());
+
+      drawExplosions();
+      drawUIOverlay();
+      ctx.restore();
+    }
+
+    function loop(ts) {
+      const dt = Math.min(0.033, (ts - game.t) / 1000 || 0.016);
+      game.t = ts;
+      update(dt);
+      render();
+      requestAnimationFrame(loop);
+    }
+
+    function barrelSequence() {
+      let start = null;
+      function step(ts) {
+        if (!start) start = ts;
+        const e = (ts - start) / 2600;
+        barrelCtx.clearRect(0, 0, barrelCanvas.width, barrelCanvas.height);
+        barrelCtx.save();
+        barrelCtx.translate(barrelCanvas.width / 2, barrelCanvas.height / 2);
+
+        const rot = e * Math.PI * 1.3;
+        for (let i = 0; i < 14; i++) {
+          const a = rot + i * (Math.PI * 2 / 14);
+          const rr = 270;
+          barrelCtx.strokeStyle = `rgba(255,255,255,${0.06 + (i % 2) * 0.06})`;
+          barrelCtx.lineWidth = i % 2 ? 6 : 3;
+          barrelCtx.beginPath();
+          barrelCtx.moveTo(Math.cos(a) * 80, Math.sin(a) * 80);
+          barrelCtx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+          barrelCtx.stroke();
+        }
+
+        barrelCtx.fillStyle = 'rgba(0,0,0,0.85)';
+        barrelCtx.beginPath();
+        barrelCtx.arc(0, 0, 110 + e * 130, 0, Math.PI * 2);
+        barrelCtx.fill();
+
+        barrelCtx.fillStyle = `rgba(255,60,80,${Math.max(0, e - 0.55) * 1.8})`;
+        barrelCtx.fillRect(-410, 175, 820, 820);
+
+        barrelCtx.restore();
+
+        if (e < 1) {
+          requestAnimationFrame(step);
+        } else {
+          barrelReveal.style.opacity = '0';
+          setTimeout(() => {
+            barrelReveal.style.display = 'none';
+            game.started = true;
+            generateMission();
+          }, 700);
+        }
+      }
+      requestAnimationFrame(step);
+    }
+
+    addEventListener('keydown', (e) => {
+      game.keys[e.key] = true;
+      if (e.key === 'n' || e.key === 'N') {
+        game.running = true;
+        game.player.hp = 100;
+        generateMission();
+      }
+      if ([' ', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
+    }, { passive: false });
+
+    addEventListener('keyup', (e) => game.keys[e.key] = false);
+
+    nextMissionBtn.addEventListener('click', () => {
+      game.running = true;
+      generateMission();
+    });
+
+    barrelSequence();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>

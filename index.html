@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Bond: Paris Field Episodes</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --hud: rgba(5, 10, 18, 0.78);
+      --accent: #e2f0ff;
+      --danger: #ff5454;
+      --ok: #7dffa8;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; font-family: Inter, system-ui, sans-serif; background: #000; }
+    #game { position: fixed; inset: 0; }
+
+    #hud {
+      position: fixed;
+      inset: 12px;
+      display: grid;
+      grid-template-columns: 340px 1fr 340px;
+      pointer-events: none;
+      color: #eef6ff;
+      text-shadow: 0 2px 4px rgba(0,0,0,.7);
+    }
+    .panel {
+      background: var(--hud);
+      border: 1px solid rgba(188, 217, 255, 0.33);
+      border-radius: 10px;
+      padding: 12px;
+      backdrop-filter: blur(8px);
+    }
+    #left { align-self: start; }
+    #center { align-self: start; justify-self: center; width: min(700px, 95%); }
+    #right { align-self: start; justify-self: end; }
+
+    h1, h2, p { margin: 0 0 8px 0; }
+    h1 { font-size: 1rem; letter-spacing: .05em; }
+    h2 { font-size: .95rem; color: #cddff5; }
+    p, li { font-size: .84rem; line-height: 1.3rem; }
+    ul { margin: 0 0 0 16px; padding: 0; }
+
+    #crosshair {
+      position: fixed;
+      left: 50%; top: 50%; transform: translate(-50%, -50%);
+      width: 26px; height: 26px;
+      pointer-events: none;
+      opacity: .9;
+    }
+    #crosshair::before, #crosshair::after {
+      content: "";
+      position: absolute;
+      background: rgba(230,240,255, .95);
+      box-shadow: 0 0 6px rgba(255,255,255,.7);
+    }
+    #crosshair::before { left: 12px; top: 2px; width: 2px; height: 22px; }
+    #crosshair::after { top: 12px; left: 2px; width: 22px; height: 2px; }
+
+    .meter { height: 8px; background: rgba(255,255,255,0.12); border-radius: 8px; overflow: hidden; margin-bottom: 8px; }
+    .meter > span { display: block; height: 100%; background: linear-gradient(90deg, #4de6ff, #7dffa8); }
+
+    #boot {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at center, #2f2f2f 0%, #111 20%, #000 48%);
+      color: white;
+      display: grid;
+      place-items: center;
+      z-index: 9;
+      animation: barrel 3.2s ease-out forwards;
+    }
+
+    #boot .ring {
+      width: min(78vmin, 640px);
+      aspect-ratio: 1/1;
+      border-radius: 50%;
+      border: 16px solid #e9edf3;
+      box-shadow: 0 0 40px rgba(255,255,255,.55), inset 0 0 40px rgba(255,255,255,.45);
+      display: grid;
+      place-items: center;
+      position: relative;
+    }
+
+    #boot .ring::before {
+      content: "";
+      position: absolute;
+      inset: 10%;
+      border: 5px solid rgba(255,255,255,.6);
+      border-radius: 50%;
+    }
+
+    #boot .line {
+      width: 70%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, white, transparent);
+      position: absolute;
+      animation: scan 1s linear infinite;
+    }
+
+    #start {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: rgba(0,0,0,.82);
+      z-index: 8;
+      text-align: center;
+      padding: 24px;
+    }
+    #start .card {
+      max-width: 920px;
+      width: min(92vw, 920px);
+      background: rgba(9, 17, 30, .95);
+      border: 1px solid rgba(255,255,255,.23);
+      border-radius: 14px;
+      padding: 22px;
+      color: #e8f0ff;
+    }
+    .btn {
+      pointer-events: auto;
+      margin-top: 14px;
+      background: #f3f6ff;
+      color: #131d2f;
+      border: 0;
+      padding: 12px 20px;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    @keyframes barrel {
+      0% { transform: scale(1.2); opacity: 1; }
+      75% { transform: scale(1); opacity: 1; }
+      100% { transform: scale(2.6); opacity: 0; visibility: hidden; }
+    }
+    @keyframes scan {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div id="game"></div>
+
+  <div id="boot" aria-hidden="true">
+    <div class="ring">
+      <div class="line"></div>
+      <strong style="letter-spacing:.2em">00X ENTRY</strong>
+    </div>
+  </div>
+
+  <div id="start">
+    <div class="card">
+      <h1>AGENT DOSSIER</h1>
+      <p><strong>Name:</strong> Ren Bond &nbsp;|&nbsp; <strong>Codename:</strong> E-008</p>
+      <p><strong>Profile:</strong> Eastern Asian field operative. Light-medium complexion with warm undertones. Black swept-back hair. Sunglasses. White metallic leather jumpsuit with black shoulder/hip accents, black metallic leather gloves, and black metallic leather ankle boots.</p>
+      <p><strong>Agency:</strong> International Civil Equilibrium Bureau (ICEB) — independent episode operations only.</p>
+      <p><strong>Mission model:</strong> No overarching story, no cliffhangers, no specialty tracks. Each episode is a standalone urban intervention in everyday Paris spaces with high-tension, over-the-top explosive action.</p>
+      <p><strong>Controls:</strong> WASD move • Mouse look • Click: kinetic pistol • Shift sprint • E interact with mission kiosks</p>
+      <button class="btn" id="playBtn">Begin Episode</button>
+    </div>
+  </div>
+
+  <div id="hud">
+    <div id="left" class="panel">
+      <h2>Agent Vital</h2>
+      <p>Integrity</p><div class="meter"><span id="healthBar" style="width:100%"></span></div>
+      <p>Energy</p><div class="meter"><span id="staminaBar" style="width:100%"></span></div>
+      <p id="objective">Objective: Secure a mission kiosk.</p>
+    </div>
+    <div id="center" class="panel">
+      <h2>Episode Brief</h2>
+      <p id="missionTitle">Awaiting deployment...</p>
+      <p id="missionDesc">A fresh standalone assignment will generate when you interact with a kiosk.</p>
+    </div>
+    <div id="right" class="panel">
+      <h2>Rules of Theater</h2>
+      <ul>
+        <li>No corruption, crime rings, terrorism, rogue agency, or elite conspiracy arcs.</li>
+        <li>Conflicts are personal and malicious, kept out of public attention.</li>
+        <li>Neutralize hostile operatives and extract. Episode then resets.</li>
+      </ul>
+      <p id="score">Episodes completed: 0</p>
+    </div>
+  </div>
+
+  <div id="crosshair"></div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.162/build/three.module.js';
+    import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.162/examples/jsm/controls/PointerLockControls.js';
+
+    const gameRoot = document.getElementById('game');
+    const playBtn = document.getElementById('playBtn');
+    const start = document.getElementById('start');
+    const boot = document.getElementById('boot');
+    const healthBar = document.getElementById('healthBar');
+    const staminaBar = document.getElementById('staminaBar');
+    const objective = document.getElementById('objective');
+    const missionTitle = document.getElementById('missionTitle');
+    const missionDesc = document.getElementById('missionDesc');
+    const scoreEl = document.getElementById('score');
+
+    setTimeout(() => boot.style.display = 'none', 3200);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x101726);
+    scene.fog = new THREE.Fog(0x101726, 40, 180);
+
+    const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    gameRoot.appendChild(renderer.domElement);
+
+    const hemi = new THREE.HemisphereLight(0x89b8ff, 0x1f1f1f, 1.0);
+    scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 0.75);
+    dir.position.set(20, 40, 10);
+    dir.castShadow = true;
+    scene.add(dir);
+
+    const ground = new THREE.Mesh(
+      new THREE.PlaneGeometry(650, 650),
+      new THREE.MeshStandardMaterial({ color: 0x334255, roughness: 0.9 })
+    );
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const controls = new PointerLockControls(camera, renderer.domElement);
+    scene.add(controls.getObject());
+    camera.position.set(0, 1.8, 8);
+
+    const move = { f: false, b: false, l: false, r: false, sprint: false };
+    let velocity = new THREE.Vector3();
+    let health = 100;
+    let stamina = 100;
+    let episodes = 0;
+    let activeMission = null;
+    let enemiesRemaining = 0;
+
+    const bullets = [];
+    const enemies = [];
+    const kiosks = [];
+
+    function building(x, z, w, h, d, color) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, metalness: 0.2, roughness: 0.78 }));
+      mesh.position.set(x, h / 2, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+
+    for (let i = 0; i < 140; i++) {
+      const x = (Math.random() - 0.5) * 520;
+      const z = (Math.random() - 0.5) * 520;
+      const w = 8 + Math.random() * 18;
+      const d = 8 + Math.random() * 18;
+      const h = 6 + Math.random() * 26;
+      if (Math.abs(x) < 18 && Math.abs(z) < 18) continue;
+      building(x, z, w, h, d, new THREE.Color().setHSL(0.58, 0.2, 0.15 + Math.random() * 0.2));
+    }
+
+    const kioskGeo = new THREE.CylinderGeometry(1.3, 1.3, 2.8, 8);
+    const kioskMat = new THREE.MeshStandardMaterial({ color: 0x73d5ff, emissive: 0x204b63 });
+    [[25, 12], [-28, 34], [52, -26], [-48, -42]].forEach(([x, z]) => {
+      const k = new THREE.Mesh(kioskGeo, kioskMat);
+      k.position.set(x, 1.4, z);
+      k.userData.isKiosk = true;
+      scene.add(k);
+      kiosks.push(k);
+    });
+
+    const episodeSeeds = [
+      { district: 'Belleville Side Street', motive: 'personal revenge over failed art partnership', location: 'laundromat loading yard' },
+      { district: 'Gobelins Market Edge', motive: 'obsessive inheritance dispute', location: 'closed flower kiosk corridor' },
+      { district: 'Montparnasse Back Block', motive: 'extreme jealousy in a broken private alliance', location: 'underground parking level C' },
+      { district: 'Canal Saint-Martin Steps', motive: 'malicious family rivalry over property memory', location: 'small riverside storage lot' }
+    ];
+
+    function newEpisode() {
+      const seed = episodeSeeds[Math.floor(Math.random() * episodeSeeds.length)];
+      const needed = 5 + Math.floor(Math.random() * 4);
+      activeMission = {
+        title: `Episode ${episodes + 1}: ${seed.district}`,
+        desc: `ICEB confirms a malicious private cell using ${seed.location}. Motive: ${seed.motive}. Keep operation invisible to public attention. Neutralize ${needed} hostile agents.` ,
+        targetCount: needed
+      };
+      missionTitle.textContent = activeMission.title;
+      missionDesc.textContent = activeMission.desc;
+      objective.textContent = `Objective: Neutralize hostile agents (${needed}).`;
+      spawnEnemies(needed);
+    }
+
+    function spawnEnemies(count) {
+      enemies.forEach(e => scene.remove(e));
+      enemies.length = 0;
+      enemiesRemaining = count;
+      for (let i = 0; i < count; i++) {
+        const body = new THREE.Mesh(
+          new THREE.CapsuleGeometry(0.55, 1.0, 5, 12),
+          new THREE.MeshStandardMaterial({ color: 0x98292d, metalness: 0.12, roughness: 0.8 })
+        );
+        body.position.set((Math.random() - 0.5) * 90, 1.2, (Math.random() - 0.5) * 90);
+        body.castShadow = true;
+        body.userData = { hp: 3, t: Math.random() * 1000 };
+        scene.add(body);
+        enemies.push(body);
+      }
+    }
+
+    function shoot() {
+      if (!controls.isLocked) return;
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      const proj = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffd58f }));
+      proj.position.copy(camera.position);
+      proj.userData.vel = dir.multiplyScalar(1.9);
+      bullets.push(proj);
+      scene.add(proj);
+    }
+
+    addEventListener('click', shoot);
+
+    addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW') move.f = true;
+      if (e.code === 'KeyS') move.b = true;
+      if (e.code === 'KeyA') move.l = true;
+      if (e.code === 'KeyD') move.r = true;
+      if (e.code === 'ShiftLeft') move.sprint = true;
+      if (e.code === 'KeyE') {
+        const p = camera.position;
+        const near = kiosks.some(k => k.position.distanceTo(p) < 4.2);
+        if (near && !activeMission) newEpisode();
+      }
+    });
+
+    addEventListener('keyup', (e) => {
+      if (e.code === 'KeyW') move.f = false;
+      if (e.code === 'KeyS') move.b = false;
+      if (e.code === 'KeyA') move.l = false;
+      if (e.code === 'KeyD') move.r = false;
+      if (e.code === 'ShiftLeft') move.sprint = false;
+    });
+
+    playBtn.onclick = () => {
+      start.style.display = 'none';
+      controls.lock();
+      objective.textContent = 'Objective: Reach a mission kiosk and press E.';
+    };
+
+    function updateHUD() {
+      healthBar.style.width = `${Math.max(0, health)}%`;
+      staminaBar.style.width = `${Math.max(0, stamina)}%`;
+      scoreEl.textContent = `Episodes completed: ${episodes}`;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      const speed = move.sprint && stamina > 0 ? 0.17 : 0.1;
+      if (move.sprint && (move.f || move.b || move.l || move.r)) stamina -= 0.2;
+      else stamina += 0.1;
+      stamina = Math.min(100, Math.max(0, stamina));
+
+      velocity.set(0, 0, 0);
+      if (move.f) velocity.z -= speed;
+      if (move.b) velocity.z += speed;
+      if (move.l) velocity.x -= speed;
+      if (move.r) velocity.x += speed;
+      controls.moveRight(velocity.x);
+      controls.moveForward(velocity.z);
+
+      bullets.forEach((b, bi) => {
+        b.position.add(b.userData.vel);
+        if (b.position.length() > 500) {
+          scene.remove(b); bullets.splice(bi, 1);
+        }
+        enemies.forEach((e, ei) => {
+          if (e.position.distanceTo(b.position) < 0.8) {
+            e.userData.hp -= 1;
+            scene.remove(b); bullets.splice(bi, 1);
+            if (e.userData.hp <= 0) {
+              scene.remove(e);
+              enemies.splice(ei, 1);
+              enemiesRemaining -= 1;
+              objective.textContent = `Objective: Neutralize hostile agents (${Math.max(0, enemiesRemaining)} left).`;
+              if (enemiesRemaining <= 0 && activeMission) {
+                episodes += 1;
+                activeMission = null;
+                objective.textContent = 'Episode complete. Reach a kiosk and press E for next standalone mission.';
+              }
+            }
+          }
+        });
+      });
+
+      enemies.forEach((e) => {
+        const toPlayer = new THREE.Vector3().subVectors(camera.position, e.position);
+        const dist = toPlayer.length();
+        toPlayer.normalize();
+        if (dist > 2.4) e.position.addScaledVector(toPlayer, 0.03);
+        else health -= 0.09;
+        e.lookAt(camera.position.x, e.position.y, camera.position.z);
+      });
+
+      if (health <= 0) {
+        health = 100;
+        stamina = 100;
+        camera.position.set(0, 1.8, 8);
+        enemies.forEach(e => scene.remove(e));
+        enemies.length = 0;
+        activeMission = null;
+        objective.textContent = 'Downed. Recovered by ICEB medical unit. Press E near kiosk for a new standalone episode.';
+      }
+
+      updateHUD();
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+    });
+  </script>
+</body>
+</html>

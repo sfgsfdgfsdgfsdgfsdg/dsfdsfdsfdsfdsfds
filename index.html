@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paris Field Episodes: Agent Riku Bond 009</title>
+  <style>
+    :root {
+      --bg: #0a0d12;
+      --panel: #121826;
+      --ink: #eaf2ff;
+      --accent: #56e0ff;
+      --danger: #ff4a4a;
+      --ok: #85ffb8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Roboto, Arial, sans-serif;
+      background: linear-gradient(130deg, #07090f, #101522 40%, #101010);
+      color: var(--ink);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 12px;
+    }
+    #app {
+      width: min(1100px, 100%);
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      gap: 10px;
+    }
+    .panel {
+      background: rgba(18, 24, 38, 0.94);
+      border: 1px solid #26324f;
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+    }
+    h1, h2, h3, p { margin: 0 0 8px; }
+    h1 { font-size: 1.2rem; color: #fff; }
+    h2 { font-size: 1rem; color: var(--accent); }
+    .small { font-size: 0.86rem; color: #b9c9f0; }
+    #gameWrap { position: relative; }
+    canvas {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      border-radius: 12px;
+      border: 1px solid #304167;
+      background: #0e1320;
+      display: block;
+    }
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    button {
+      width: 100%;
+      border: 1px solid #38558e;
+      background: #17243f;
+      color: white;
+      border-radius: 9px;
+      padding: 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    button:hover { background: #203462; }
+    .stat {
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      border-radius: 8px;
+      background: #0f1524;
+      border: 1px solid #202f4d;
+    }
+    .missionCard {
+      margin-top: 6px;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid #35508b;
+      background: linear-gradient(160deg, #0e1629, #0d1020);
+    }
+    .alert { color: #ffcd57; }
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      pointer-events: none;
+      color: white;
+      font-size: clamp(1rem, 2vw, 1.5rem);
+      text-shadow: 0 3px 12px black;
+      text-align: center;
+      padding: 16px;
+    }
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      margin-right: 6px;
+      border-radius: 999px;
+      border: 1px solid #3e5b95;
+      font-size: 0.8rem;
+      color: #b8d6ff;
+    }
+    @media (max-width: 900px) {
+      #app { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <aside class="panel">
+    <h1>International Agency: Meridian Desk</h1>
+    <p class="small">Field Operative Profile</p>
+    <div class="stat"><strong>Name:</strong> Riku Bond</div>
+    <div class="stat"><strong>Codename:</strong> 009</div>
+    <div class="stat"><strong>Appearance:</strong> Eastern Asian physicality, light-medium skin with warm undertones, black swept-back hair, dark sunglasses, metallic white leather jumpsuit with black shoulder and hip accents, metallic black leather gloves, metallic black leather ankle boots.</div>
+    <div class="stat"><strong>Tone:</strong> Tense, direct, light atmosphere, no humor, no public spectacle.</div>
+    <div class="stat"><strong>Setting:</strong> Casual Paris environments only.</div>
+    <h2>Episode Brief</h2>
+    <div class="missionCard" id="missionBrief">Loading...</div>
+    <div class="controls">
+      <button id="startEpisode">Start Episode</button>
+      <button id="nextEpisode">Generate New Episode</button>
+      <button id="resetBtn">Reset Run</button>
+      <button id="pauseBtn">Pause / Resume</button>
+    </div>
+    <p class="small" style="margin-top:8px;">Controls: <span class="pill">WASD / Arrows Move</span> <span class="pill">Shift Dash</span> <span class="pill">Space Strike</span></p>
+    <p class="small alert">Objective: Neutralize malicious field operatives and stabilize danger zones before countdown ends.</p>
+    <div id="statusLog" class="small" style="margin-top:8px; line-height:1.35;"></div>
+  </aside>
+
+  <section class="panel" id="gameWrap">
+    <canvas id="game" width="960" height="540"></canvas>
+    <div id="overlay"></div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const missionBrief = document.getElementById('missionBrief');
+  const statusLog = document.getElementById('statusLog');
+
+  const keys = new Set();
+  const WIDTH = canvas.width;
+  const HEIGHT = canvas.height;
+
+  const game = {
+    playing: false,
+    paused: false,
+    mode: 'intro',
+    introT: 0,
+    episode: 1,
+    score: 0,
+    danger: 0,
+    timer: 90,
+    enemiesDefeated: 0,
+    particles: [],
+    blasts: [],
+    messages: [],
+    mission: null,
+    player: {
+      x: WIDTH * 0.5,
+      y: HEIGHT * 0.7,
+      vx: 0,
+      vy: 0,
+      speed: 250,
+      hp: 100,
+      dashCd: 0,
+      strikeCd: 0,
+      invuln: 0,
+      facingX: 0,
+      facingY: -1,
+    },
+    enemies: [],
+    dt: 0,
+    lastTs: 0,
+  };
+
+  const neighborhoods = [
+    'Belleville Side Street', 'Montparnasse Corner Café', 'Canal Saint-Martin Walkway',
+    'Rue Cler Grocery Lane', 'Bastille Bike Court', 'Batignolles Laundry Block',
+    'Nation Tram Stop', 'Les Halles Delivery Alley'
+  ];
+
+  const personalLinks = [
+    'former training partner', 'estranged sibling', 'past extraction teammate',
+    'retired handler\'s protégé', 'academy roommate', 'former language coach'
+  ];
+
+  const maliciousActs = [
+    'staging chain ignitions in parked delivery carts',
+    'triggering gas-line pressure spikes through utility cabinets',
+    'rerouting electric scooter batteries into overload nests',
+    'locking subway shutters to create stampede risk',
+    'cross-wiring market freezers to create blast hazards',
+    'arming paint-thinner drums with thermal fuses'
+  ];
+
+  function pick(arr) { return arr[(Math.random() * arr.length) | 0]; }
+
+  function generateMission() {
+    const loc = pick(neighborhoods);
+    const link = pick(personalLinks);
+    const act = pick(maliciousActs);
+    game.mission = {
+      location: loc,
+      antagonist: `Agent Luc Vasseur`,
+      relation: link,
+      objective: `Stop hostile operatives ${act} at ${loc}.`,
+      clause: `No criminal syndicate, no terrorism, no corruption: this is a personal rivalry cell from the foreign agency "Obsidian Current" acting maliciously in secrecy.`,
+      countdown: 80 + Math.floor(Math.random() * 26),
+      enemyCount: 5 + Math.floor(Math.random() * 5),
+    };
+
+    missionBrief.innerHTML = `
+      <strong>Episode ${game.episode}</strong><br>
+      <strong>Paris Zone:</strong> ${game.mission.location}<br>
+      <strong>Primary Antagonist:</strong> ${game.mission.antagonist} (${game.mission.relation})<br>
+      <strong>Mission:</strong> ${game.mission.objective}<br>
+      <strong>Constraints:</strong> ${game.mission.clause}<br>
+      <strong>No overarching story.</strong> Standalone outcome, no cliffhanger.
+    `;
+
+    game.timer = game.mission.countdown;
+    log(`Episode ${game.episode} ready. Location: ${loc}.`);
+  }
+
+  function log(msg) {
+    game.messages.unshift(`${new Date().toLocaleTimeString()} - ${msg}`);
+    game.messages = game.messages.slice(0, 7);
+    statusLog.innerHTML = game.messages.map(m => `<div>• ${m}</div>`).join('');
+  }
+
+  function spawnEnemies() {
+    game.enemies = [];
+    const n = game.mission.enemyCount;
+    for (let i = 0; i < n; i++) {
+      game.enemies.push({
+        x: 60 + Math.random() * (WIDTH - 120),
+        y: 60 + Math.random() * (HEIGHT - 180),
+        vx: 0,
+        vy: 0,
+        hp: 30,
+        speed: 75 + Math.random() * 45,
+        fuse: 2 + Math.random() * 4,
+        blastArmed: Math.random() < 0.45,
+        punchCd: Math.random() * 1.5,
+      });
+    }
+  }
+
+  function resetPlayer() {
+    Object.assign(game.player, {
+      x: WIDTH * 0.5, y: HEIGHT * 0.78, vx: 0, vy: 0,
+      hp: 100, dashCd: 0, strikeCd: 0, invuln: 0, facingX: 0, facingY: -1,
+    });
+  }
+
+  function startEpisode() {
+    if (!game.mission) generateMission();
+    resetPlayer();
+    spawnEnemies();
+    game.playing = true;
+    game.mode = 'play';
+    game.paused = false;
+    game.danger = 0;
+    game.enemiesDefeated = 0;
+    game.particles = [];
+    game.blasts = [];
+    overlay.innerHTML = '';
+    log(`Deploying Agent Bond 009 in ${game.mission.location}.`);
+  }
+
+  function addExplosion(x, y, radius = 70, color = '#ff8a3d') {
+    game.blasts.push({x, y, r: 1, max: radius, life: 0.5, color});
+    for (let i = 0; i < 35; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const sp = 70 + Math.random() * 240;
+      game.particles.push({
+        x, y,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        life: 0.6 + Math.random() * 0.7,
+        color: Math.random() < 0.7 ? '#ff9a46' : '#d7ecff',
+      });
+    }
+  }
+
+  function hitPlayer(dmg, source) {
+    if (game.player.invuln > 0) return;
+    game.player.hp -= dmg;
+    game.player.invuln = 0.65;
+    log(`Impact from ${source}. HP ${Math.max(0, Math.floor(game.player.hp))}.`);
+    if (game.player.hp <= 0) {
+      game.mode = 'fail';
+      game.playing = false;
+      overlay.innerHTML = '<div><strong>Mission Failed</strong><br>Agent down. Reset and redeploy.</div>';
+    }
+  }
+
+  function update(dt) {
+    if (game.mode === 'intro') {
+      game.introT += dt;
+      if (game.introT > 4.2) {
+        game.mode = 'brief';
+        overlay.innerHTML = '<div>Gun barrel sequence complete.<br>Generate or start a Paris episode.</div>';
+      }
+      return;
+    }
+
+    if (!game.playing || game.paused || game.mode !== 'play') return;
+
+    game.timer -= dt;
+    if (game.timer <= 0) {
+      game.timer = 0;
+      game.mode = 'fail';
+      game.playing = false;
+      overlay.innerHTML = '<div><strong>Mission Failed</strong><br>Countdown expired.</div>';
+      log('Timer expired. Field collapse triggered.');
+      return;
+    }
+
+    const p = game.player;
+    p.dashCd = Math.max(0, p.dashCd - dt);
+    p.strikeCd = Math.max(0, p.strikeCd - dt);
+    p.invuln = Math.max(0, p.invuln - dt);
+
+    let mx = 0, my = 0;
+    if (keys.has('w') || keys.has('arrowup')) my -= 1;
+    if (keys.has('s') || keys.has('arrowdown')) my += 1;
+    if (keys.has('a') || keys.has('arrowleft')) mx -= 1;
+    if (keys.has('d') || keys.has('arrowright')) mx += 1;
+    const mLen = Math.hypot(mx, my) || 1;
+    mx /= mLen; my /= mLen;
+
+    if (mx || my) { p.facingX = mx; p.facingY = my; }
+
+    const dashing = keys.has('shift') && p.dashCd <= 0;
+    if (dashing && (mx || my)) {
+      p.x += mx * 120;
+      p.y += my * 120;
+      p.dashCd = 1.2;
+      addExplosion(p.x, p.y, 38, '#8ce9ff');
+      log('High-speed dash executed.');
+    }
+
+    p.vx = mx * p.speed;
+    p.vy = my * p.speed;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+
+    p.x = Math.max(24, Math.min(WIDTH - 24, p.x));
+    p.y = Math.max(24, Math.min(HEIGHT - 24, p.y));
+
+    if (keys.has(' ') && p.strikeCd <= 0) {
+      p.strikeCd = 0.35;
+      addExplosion(p.x + p.facingX * 25, p.y + p.facingY * 25, 45, '#ffe082');
+      for (const e of game.enemies) {
+        if (e.hp <= 0) continue;
+        const d = Math.hypot(e.x - p.x - p.facingX * 22, e.y - p.y - p.facingY * 22);
+        if (d < 72) {
+          e.hp -= 20;
+          const push = 90;
+          e.x += (e.x - p.x) / (d || 1) * push * dt;
+          e.y += (e.y - p.y) / (d || 1) * push * dt;
+          if (e.hp <= 0) {
+            game.enemiesDefeated++;
+            game.score += 130;
+            addExplosion(e.x, e.y, 64, '#ff5f5f');
+            log('Hostile operative neutralized.');
+          }
+        }
+      }
+    }
+
+    for (const e of game.enemies) {
+      if (e.hp <= 0) continue;
+
+      const dx = p.x - e.x;
+      const dy = p.y - e.y;
+      const d = Math.hypot(dx, dy) || 1;
+      e.vx = (dx / d) * e.speed;
+      e.vy = (dy / d) * e.speed;
+      e.x += e.vx * dt;
+      e.y += e.vy * dt;
+
+      e.punchCd -= dt;
+      if (d < 30 && e.punchCd <= 0) {
+        e.punchCd = 0.9 + Math.random() * 0.5;
+        hitPlayer(8 + Math.random() * 5, 'close-quarters strike');
+      }
+
+      e.fuse -= dt;
+      if (e.blastArmed && e.fuse <= 0) {
+        e.fuse = 2.5 + Math.random() * 3;
+        addExplosion(e.x, e.y, 85, '#ff6c40');
+        if (Math.hypot(p.x - e.x, p.y - e.y) < 94) hitPlayer(18, 'thermal burst');
+        game.danger += 8;
+      }
+    }
+
+    if (game.danger > 0) game.danger = Math.max(0, game.danger - dt * 3);
+
+    for (const b of game.blasts) {
+      b.life -= dt;
+      b.r += dt * 220;
+    }
+    game.blasts = game.blasts.filter(b => b.life > 0);
+
+    for (const p2 of game.particles) {
+      p2.life -= dt;
+      p2.x += p2.vx * dt;
+      p2.y += p2.vy * dt;
+      p2.vx *= 0.93;
+      p2.vy *= 0.93;
+    }
+    game.particles = game.particles.filter(p2 => p2.life > 0);
+
+    const alive = game.enemies.filter(e => e.hp > 0).length;
+    if (alive === 0) {
+      game.mode = 'win';
+      game.playing = false;
+      game.score += Math.floor(game.timer * 10) + Math.max(0, 150 - game.danger * 3);
+      overlay.innerHTML = `<div><strong>Episode Cleared</strong><br>Standalone mission complete. No cliffhanger.</div>`;
+      log('Episode complete. Personal-rivalry cell disrupted.');
+      game.episode++;
+    }
+  }
+
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
+    g.addColorStop(0, '#10192e');
+    g.addColorStop(1, '#0a0f1b');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    ctx.globalAlpha = 0.2;
+    for (let y = 40; y < HEIGHT; y += 80) {
+      ctx.fillStyle = y % 160 === 40 ? '#3f4f74' : '#243354';
+      ctx.fillRect(0, y, WIDTH, 3);
+    }
+    for (let x = 40; x < WIDTH; x += 100) {
+      ctx.fillStyle = x % 200 === 40 ? '#3f4f74' : '#243354';
+      ctx.fillRect(x, 0, 3, HEIGHT);
+    }
+    ctx.globalAlpha = 1;
+
+    ctx.fillStyle = '#d3d8e2';
+    ctx.font = '20px Segoe UI';
+    const zone = game.mission?.location || 'Paris Field Zone';
+    ctx.fillText(zone, 18, 30);
+  }
+
+  function drawPlayer() {
+    const p = game.player;
+    ctx.save();
+    ctx.translate(p.x, p.y);
+
+    const angle = Math.atan2(p.facingY, p.facingX);
+    ctx.rotate(angle + Math.PI / 2);
+
+    ctx.fillStyle = p.invuln > 0 ? '#8af3ff' : '#f4f6fb';
+    ctx.beginPath();
+    ctx.moveTo(0, -20);
+    ctx.lineTo(13, 15);
+    ctx.lineTo(-13, 15);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#0f0f11';
+    ctx.fillRect(-8, -3, 16, 5);
+    ctx.fillStyle = '#101010';
+    ctx.fillRect(-10, 10, 20, 6);
+    ctx.restore();
+
+    const barW = 180;
+    ctx.fillStyle = '#1c2438';
+    ctx.fillRect(15, HEIGHT - 22, barW, 11);
+    ctx.fillStyle = '#4ef0a0';
+    ctx.fillRect(15, HEIGHT - 22, Math.max(0, (p.hp / 100) * barW), 11);
+    ctx.strokeStyle = '#314367';
+    ctx.strokeRect(15, HEIGHT - 22, barW, 11);
+  }
+
+  function drawEnemies() {
+    for (const e of game.enemies) {
+      if (e.hp <= 0) continue;
+      ctx.save();
+      ctx.translate(e.x, e.y);
+      ctx.fillStyle = '#ff5252';
+      ctx.beginPath();
+      ctx.arc(0, 0, 13, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#200';
+      ctx.fillRect(-8, -2, 16, 4);
+      if (e.blastArmed) {
+        ctx.fillStyle = '#ffd56f';
+        ctx.fillRect(-2, -18, 4, 6);
+      }
+      ctx.restore();
+    }
+  }
+
+  function drawFx() {
+    for (const b of game.blasts) {
+      const alpha = Math.max(0, b.life * 1.6);
+      ctx.strokeStyle = b.color;
+      ctx.globalAlpha = alpha;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    for (const p2 of game.particles) {
+      ctx.globalAlpha = Math.max(0, p2.life);
+      ctx.fillStyle = p2.color;
+      ctx.fillRect(p2.x, p2.y, 3, 3);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawHud() {
+    ctx.fillStyle = '#d3e0ff';
+    ctx.font = 'bold 16px Segoe UI';
+    ctx.fillText(`EP ${Math.max(1, game.episode)}  SCORE ${game.score}`, WIDTH - 255, 24);
+    ctx.fillText(`TIME ${Math.ceil(game.timer)}`, WIDTH - 155, 48);
+    ctx.fillText(`DANGER ${Math.floor(game.danger)}`, WIDTH - 170, 72);
+
+    if (game.paused) {
+      ctx.fillStyle = 'rgba(0,0,0,0.55)';
+      ctx.fillRect(0, 0, WIDTH, HEIGHT);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 30px Segoe UI';
+      ctx.fillText('PAUSED', WIDTH / 2 - 70, HEIGHT / 2);
+    }
+  }
+
+  function drawIntro() {
+    const t = game.introT;
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+    const centerX = WIDTH / 2;
+    const centerY = HEIGHT / 2;
+    const progress = Math.min(1, t / 3.8);
+    const angleSpan = Math.PI * 2 * progress;
+
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 26;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 185, -Math.PI / 2, -Math.PI / 2 + angleSpan);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 46px Segoe UI';
+    if (t > 1.2) ctx.fillText('009', centerX - 42, centerY + 17);
+
+    if (t > 2.2) {
+      ctx.font = '22px Segoe UI';
+      ctx.fillText('Riku Bond', centerX - 58, centerY + 62);
+    }
+
+    if (t > 3.2) {
+      ctx.font = '18px Segoe UI';
+      ctx.fillText('Paris Episode Protocol', centerX - 95, centerY + 96);
+    }
+  }
+
+  function render() {
+    if (game.mode === 'intro') {
+      drawIntro();
+      return;
+    }
+    drawBackground();
+    drawEnemies();
+    drawPlayer();
+    drawFx();
+    drawHud();
+  }
+
+  function tick(ts) {
+    const dt = Math.min(0.033, (ts - game.lastTs) / 1000 || 0.016);
+    game.lastTs = ts;
+    game.dt = dt;
+    update(dt);
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
+    keys.add(k);
+  });
+  window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
+
+  document.getElementById('startEpisode').addEventListener('click', startEpisode);
+  document.getElementById('nextEpisode').addEventListener('click', () => {
+    game.playing = false;
+    game.mode = 'brief';
+    game.episode += game.mode === 'win' ? 0 : 1;
+    generateMission();
+    overlay.innerHTML = '<div>New standalone episode generated.<br>Press Start Episode.</div>';
+  });
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    game.episode = 1;
+    game.score = 0;
+    game.mode = 'brief';
+    generateMission();
+    resetPlayer();
+    game.playing = false;
+    overlay.innerHTML = '<div>Run reset. No ongoing story chain.</div>';
+    log('Run reset.');
+  });
+  document.getElementById('pauseBtn').addEventListener('click', () => {
+    if (game.mode === 'play') game.paused = !game.paused;
+  });
+
+  generateMission();
+  overlay.innerHTML = '<div>Initiating standalone 007-like gun barrel sequence...</div>';
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>

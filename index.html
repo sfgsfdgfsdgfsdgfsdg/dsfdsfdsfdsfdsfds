@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent 009: Paris Flashpoint</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --hud: rgba(0, 0, 0, 0.62);
+      --accent: #f7f7f7;
+      --danger: #ff5d5d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: #0b0f16;
+    }
+    #gameCanvas { display: block; }
+    #overlay, #barrelReveal {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+    #hud {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto 1fr auto;
+      color: white;
+      padding: 14px;
+      gap: 10px;
+      pointer-events: none;
+    }
+    .panel {
+      background: var(--hud);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      backdrop-filter: blur(6px);
+      padding: 10px 12px;
+      max-width: 460px;
+    }
+    #missionPanel { grid-column: 1 / 2; grid-row: 1 / 2; }
+    #statsPanel { grid-column: 2 / 3; grid-row: 1 / 2; text-align: right; }
+    #briefing {
+      grid-column: 1 / 2;
+      grid-row: 3 / 4;
+      max-width: 520px;
+      line-height: 1.38;
+      font-size: 0.92rem;
+    }
+    #crosshair {
+      position: fixed;
+      left: 50%; top: 50%;
+      transform: translate(-50%, -50%);
+      width: 22px; height: 22px;
+      opacity: 0.95;
+    }
+    #crosshair::before, #crosshair::after {
+      content: "";
+      position: absolute;
+      background: rgba(255, 255, 255, 0.88);
+      border-radius: 4px;
+    }
+    #crosshair::before { left: 9px; top: 0; width: 4px; height: 22px; }
+    #crosshair::after { top: 9px; left: 0; width: 22px; height: 4px; }
+    #startScreen {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.08), transparent 40%),
+        linear-gradient(145deg, #03060d, #111827 58%, #03060d);
+      color: white;
+      pointer-events: auto;
+      z-index: 20;
+    }
+    #card {
+      width: min(900px, 92vw);
+      border: 1px solid rgba(255, 255, 255, 0.26);
+      border-radius: 14px;
+      background: rgba(10, 13, 20, 0.92);
+      padding: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+    }
+    #card h1 { margin-top: 0; letter-spacing: 0.06em; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+    }
+    button {
+      pointer-events: auto;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 11px 16px;
+      color: #07101f;
+      background: linear-gradient(120deg, #f3f4f6, #dfe7f8);
+      font-weight: 700;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      margin-top: 12px;
+    }
+    #barrelReveal {
+      z-index: 30;
+      display: none;
+      place-items: center;
+      background: radial-gradient(circle at center, transparent 0 18%, rgba(0,0,0,0.95) 53%);
+      animation: fadeOut 2.2s ease forwards;
+      color: #fff;
+      text-align: center;
+      font-size: clamp(1.2rem, 3.5vw, 2.4rem);
+      letter-spacing: 0.1em;
+    }
+    #barrelReveal::before {
+      content: "";
+      position: absolute;
+      width: 120vmax;
+      height: 120vmax;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.33);
+      animation: barrelSpin 2s linear forwards;
+    }
+    @keyframes barrelSpin {
+      from { transform: rotate(0deg) scale(1); }
+      to { transform: rotate(360deg) scale(0.52); }
+    }
+    @keyframes fadeOut {
+      0%, 75% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .danger { color: var(--danger); }
+  </style>
+</head>
+<body>
+  <div id="startScreen">
+    <div id="card">
+      <h1>AGENT 009 // PARIS FLASHPOINT</h1>
+      <p>
+        Barrel reveal opens every episode. You are <strong>Kai Bond</strong> — codename <strong>009</strong> —
+        an Eastern Asian field agent with warm light-medium complexion, black swept-back hair, and mirrored sunglasses.
+        Uniform: white metallic leather jumpsuit with black shoulder/hip accents, metallic black gloves, and ankle boots.
+      </p>
+      <div class="grid">
+        <div class="panel">
+          <strong>Episode System</strong><br>
+          Every session generates a complete standalone mission set in everyday Paris blocks. No overarching plot, no cliffhanger.
+        </div>
+        <div class="panel">
+          <strong>Threat Profile</strong><br>
+          Malicious private antagonists avoid public attention and weaponry. They apply social and infrastructure pressure.
+        </div>
+        <div class="panel">
+          <strong>Controls</strong><br>
+          Move: WASD · Look: Mouse · Jump: Space · Dash: Shift · EMP Wave: E · Mission Reset: R
+        </div>
+      </div>
+      <button id="startBtn">Begin Episode</button>
+    </div>
+  </div>
+
+  <div id="barrelReveal">AGENT 009 ACTIVE</div>
+
+  <canvas id="gameCanvas"></canvas>
+
+  <div id="hud">
+    <div id="missionPanel" class="panel"></div>
+    <div id="statsPanel" class="panel"></div>
+    <div id="briefing" class="panel"></div>
+  </div>
+  <div id="crosshair"></div>
+
+  <script type="module">
+    import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.165/build/three.module.js';
+    import { PointerLockControls } from 'https://cdn.jsdelivr.net/npm/three@0.165/examples/jsm/controls/PointerLockControls.js';
+
+    const missionPanel = document.getElementById('missionPanel');
+    const statsPanel = document.getElementById('statsPanel');
+    const briefing = document.getElementById('briefing');
+    const startScreen = document.getElementById('startScreen');
+    const startBtn = document.getElementById('startBtn');
+    const barrelReveal = document.getElementById('barrelReveal');
+
+    const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.Fog(0x7b8ba2, 15, 150);
+
+    const camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.1, 300);
+    camera.position.set(0, 1.8, 5);
+
+    const controls = new PointerLockControls(camera, renderer.domElement);
+
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x1d2430, 1.1);
+    scene.add(hemi);
+    const sun = new THREE.DirectionalLight(0xffffff, 1.5);
+    sun.position.set(15, 25, -8);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    scene.add(sun);
+
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x4c5865, roughness: 0.94, metalness: 0.05 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(220, 220), groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    const buildings = [];
+    const obstacles = [];
+    const cityMat = [0xbec6d3, 0xa8b4c6, 0x909dac, 0x7f8e9f];
+    for (let x = -90; x <= 90; x += 18) {
+      for (let z = -90; z <= 90; z += 18) {
+        if (Math.abs(x) < 12 && Math.abs(z) < 16) continue;
+        const h = 8 + Math.random() * 16;
+        const b = new THREE.Mesh(
+          new THREE.BoxGeometry(11, h, 11),
+          new THREE.MeshStandardMaterial({ color: cityMat[Math.floor(Math.random() * cityMat.length)], roughness: 0.88, metalness: 0.18 })
+        );
+        b.position.set(x + (Math.random() - 0.5) * 4, h / 2, z + (Math.random() - 0.5) * 4);
+        b.castShadow = true;
+        b.receiveShadow = true;
+        scene.add(b);
+        buildings.push(b);
+        obstacles.push({ minX: b.position.x - 5.6, maxX: b.position.x + 5.6, minZ: b.position.z - 5.6, maxZ: b.position.z + 5.6 });
+      }
+    }
+
+    function addStreetProp(x, z, color = 0xffffff) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 2.4, 10), new THREE.MeshStandardMaterial({ color: 0x2c2f3a }));
+      post.position.set(x, 1.2, z);
+      post.castShadow = true;
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.32, 0.42), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.5 }));
+      head.position.y = 1.4;
+      post.add(head);
+      scene.add(post);
+    }
+
+    for (let i = -90; i <= 90; i += 9) {
+      addStreetProp(i, -7, 0xfff5da);
+      addStreetProp(i, 7, 0xfff5da);
+    }
+
+    const neonLabels = ["Boulangerie", "Metro", "Café", "Fleurs", "Studio", "Marché"]; 
+    for (let i = 0; i < 18; i++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256; canvas.height = 64;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#111'; ctx.fillRect(0,0,256,64);
+      ctx.fillStyle = '#fff'; ctx.font = '700 34px Segoe UI'; ctx.fillText(neonLabels[i % neonLabels.length], 12, 44);
+      const sign = new THREE.Mesh(
+        new THREE.PlaneGeometry(6, 1.5),
+        new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(canvas), side: THREE.DoubleSide })
+      );
+      const bx = buildings[i];
+      sign.position.set(bx.position.x, bx.position.y * 0.55, bx.position.z + 5.8);
+      scene.add(sign);
+    }
+
+    const keys = { w: false, a: false, s: false, d: false, shift: false };
+    const velocity = new THREE.Vector3();
+    const direction = new THREE.Vector3();
+    let canJump = false;
+
+    const episodes = [
+      {
+        title: "Episode 31: Café Ember Run",
+        objective: "Reach 4 pressure nodes in cafés and disable hostile influence relays.",
+        relation: "Antagonist motive: a jealous former partner sabotaging personal reputations through blackout staging."
+      },
+      {
+        title: "Episode 44: Metro Pulse Drift",
+        objective: "Intercept 5 covert signal boxes across metro exits before social panic spirals.",
+        relation: "Antagonist motive: obsessive family rivalry seeking silent humiliation, never public spectacle."
+      },
+      {
+        title: "Episode 18: Riverside Voltage",
+        objective: "Stabilize 6 grid taps hidden near residential blocks while under timed pressure.",
+        relation: "Antagonist motive: personal resentment over relationship betrayal, focused on private emotional damage."
+      },
+      {
+        title: "Episode 52: Market Heat Shadow",
+        objective: "Neutralize 5 kinetic beacons around neighborhood markets and reset flow.",
+        relation: "Antagonist motive: malicious fixation on controlling close social circles through engineered discomfort."
+      }
+    ];
+
+    let currentEpisode = null;
+    let missionNodes = [];
+    let enemies = [];
+    let empCooldown = 0;
+    let episodeTimer = 180;
+    let score = 0;
+    let active = false;
+
+    const nodeGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.35, 18);
+    const nodeMat = new THREE.MeshStandardMaterial({ color: 0xeff4ff, emissive: 0x5d8eff, emissiveIntensity: 0.9, metalness: 0.8, roughness: 0.2 });
+
+    function createEnemy(position) {
+      const enemy = new THREE.Mesh(
+        new THREE.CapsuleGeometry(0.42, 1.2, 4, 8),
+        new THREE.MeshStandardMaterial({ color: 0x4d0a11, emissive: 0x9c111f, emissiveIntensity: 0.35 })
+      );
+      enemy.position.copy(position);
+      enemy.castShadow = true;
+      scene.add(enemy);
+      return { mesh: enemy, neutralized: false, pulse: Math.random() * 100 };
+    }
+
+    function clearMissionObjects() {
+      missionNodes.forEach(n => scene.remove(n));
+      enemies.forEach(e => scene.remove(e.mesh));
+      missionNodes = [];
+      enemies = [];
+    }
+
+    function randomStreetPoint() {
+      const span = 80;
+      return new THREE.Vector3((Math.random() - 0.5) * span, 0.18, (Math.random() - 0.5) * span);
+    }
+
+    function startEpisode() {
+      clearMissionObjects();
+      currentEpisode = episodes[Math.floor(Math.random() * episodes.length)];
+      const targets = 4 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < targets; i++) {
+        const node = new THREE.Mesh(nodeGeo, nodeMat.clone());
+        node.position.copy(randomStreetPoint());
+        node.userData.active = true;
+        node.receiveShadow = true;
+        scene.add(node);
+        missionNodes.push(node);
+      }
+      for (let i = 0; i < 7; i++) enemies.push(createEnemy(randomStreetPoint().setY(1.0)));
+      camera.position.set(0, 1.8, 5);
+      episodeTimer = 210;
+      score = 0;
+      empCooldown = 0;
+      active = true;
+      briefing.innerHTML = `<strong>Agency:</strong> Meridian International Signals Office (MISO).<br>
+      <strong>Agent:</strong> Kai Bond (009).<br>
+      <strong>Status:</strong> Standalone high-action operation in routine Paris districts. No macro narrative.`;
+      updateHUD();
+    }
+
+    function updateHUD() {
+      const remaining = missionNodes.filter(n => n.userData.active).length;
+      missionPanel.innerHTML = `<strong>${currentEpisode?.title || 'Ready'}</strong><br>${currentEpisode?.objective || ''}<br><span class="danger">Targets Remaining: ${remaining}</span>`;
+      statsPanel.innerHTML = `Time: ${Math.max(0, episodeTimer).toFixed(1)}s<br>Momentum: ${score}<br>EMP: ${empCooldown <= 0 ? 'Ready' : empCooldown.toFixed(1) + 's'}`;
+      if (currentEpisode) {
+        briefing.innerHTML = `<strong>${currentEpisode.relation}</strong><br>Explosive kinetic events authorized with non-lethal field tech. Public exposure minimized.`;
+      }
+    }
+
+    function collideXZ(next) {
+      for (const o of obstacles) {
+        if (next.x > o.minX - 1 && next.x < o.maxX + 1 && next.z > o.minZ - 1 && next.z < o.maxZ + 1) return true;
+      }
+      return false;
+    }
+
+    function triggerEMP() {
+      if (empCooldown > 0 || !active) return;
+      empCooldown = 5;
+      const wave = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.9, 48), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }));
+      wave.rotation.x = -Math.PI / 2;
+      wave.position.set(camera.position.x, 0.15, camera.position.z);
+      scene.add(wave);
+      const start = performance.now();
+      const radiusMax = 16;
+      const expand = () => {
+        const t = (performance.now() - start) / 500;
+        if (t > 1) return scene.remove(wave);
+        const r = 1 + t * radiusMax;
+        wave.scale.set(r, r, r);
+        wave.material.opacity = 1 - t;
+        requestAnimationFrame(expand);
+      };
+      expand();
+
+      enemies.forEach(enemy => {
+        if (enemy.neutralized) return;
+        if (enemy.mesh.position.distanceTo(camera.position) < radiusMax) {
+          enemy.neutralized = true;
+          enemy.mesh.material.emissiveIntensity = 0;
+          enemy.mesh.material.color.set(0x444b5b);
+          score += 120;
+        }
+      });
+    }
+
+    function barrelRevealPlay() {
+      barrelReveal.style.display = 'grid';
+      barrelReveal.style.animation = 'none';
+      barrelReveal.offsetHeight;
+      barrelReveal.style.animation = 'fadeOut 2.2s ease forwards';
+      setTimeout(() => barrelReveal.style.display = 'none', 2200);
+    }
+
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = Math.min(clock.getDelta(), 0.05);
+
+      if (controls.isLocked && active) {
+        const speed = keys.shift ? 15 : 9;
+        velocity.x -= velocity.x * 8 * dt;
+        velocity.z -= velocity.z * 8 * dt;
+        velocity.y -= 28 * dt;
+
+        direction.z = Number(keys.w) - Number(keys.s);
+        direction.x = Number(keys.d) - Number(keys.a);
+        direction.normalize();
+
+        if (keys.w || keys.s) velocity.z -= direction.z * speed * dt * 18;
+        if (keys.a || keys.d) velocity.x -= direction.x * speed * dt * 18;
+
+        const oldPos = controls.object.position.clone();
+        controls.moveRight(-velocity.x * dt);
+        controls.moveForward(-velocity.z * dt);
+        const nextPos = controls.object.position;
+        if (collideXZ(nextPos)) controls.object.position.copy(oldPos);
+
+        controls.object.position.y += velocity.y * dt;
+        if (controls.object.position.y < 1.8) {
+          velocity.y = 0;
+          controls.object.position.y = 1.8;
+          canJump = true;
+        }
+
+        for (const node of missionNodes) {
+          if (!node.userData.active) continue;
+          node.rotation.y += dt * 2.5;
+          node.position.y = 0.18 + Math.sin(performance.now() * 0.004 + node.position.x) * 0.07;
+          if (node.position.distanceTo(controls.object.position) < 1.5) {
+            node.userData.active = false;
+            node.material.emissiveIntensity = 0.05;
+            node.material.color.set(0x5d6874);
+            score += 200;
+          }
+        }
+
+        enemies.forEach(enemy => {
+          if (enemy.neutralized) return;
+          enemy.pulse += dt;
+          enemy.mesh.material.emissiveIntensity = 0.35 + Math.sin(enemy.pulse * 5) * 0.1;
+          const dir = new THREE.Vector3().subVectors(controls.object.position, enemy.mesh.position);
+          const dist = dir.length();
+          if (dist > 0.1) {
+            dir.normalize();
+            enemy.mesh.position.addScaledVector(dir, dt * 3.2);
+            enemy.mesh.lookAt(controls.object.position.x, enemy.mesh.position.y, controls.object.position.z);
+          }
+          if (dist < 1.4) {
+            score = Math.max(0, score - 60 * dt);
+          }
+        });
+
+        empCooldown -= dt;
+        episodeTimer -= dt;
+        const done = missionNodes.every(n => !n.userData.active);
+        if (done || episodeTimer <= 0) {
+          active = false;
+          controls.unlock();
+          startScreen.style.display = 'grid';
+          const status = done ? 'EPISODE RESOLVED' : 'EPISODE CLOSED';
+          document.querySelector('#card p').innerHTML = `${status}: ${done ? 'All pressure nodes neutralized.' : 'Time expired under city tension.'} Score: <strong>${Math.round(score)}</strong>.`;
+          startBtn.textContent = 'Deploy New Standalone Episode';
+        }
+        updateHUD();
+      }
+
+      renderer.render(scene, camera);
+    }
+
+    startBtn.addEventListener('click', () => {
+      startScreen.style.display = 'none';
+      barrelRevealPlay();
+      startEpisode();
+      controls.lock();
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyW') keys.w = true;
+      if (e.code === 'KeyA') keys.a = true;
+      if (e.code === 'KeyS') keys.s = true;
+      if (e.code === 'KeyD') keys.d = true;
+      if (e.code === 'ShiftLeft') keys.shift = true;
+      if (e.code === 'KeyE') triggerEMP();
+      if (e.code === 'Space' && canJump) {
+        velocity.y += 10;
+        canJump = false;
+      }
+      if (e.code === 'KeyR') startEpisode();
+    });
+
+    document.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyW') keys.w = false;
+      if (e.code === 'KeyA') keys.a = false;
+      if (e.code === 'KeyS') keys.s = false;
+      if (e.code === 'KeyD') keys.d = false;
+      if (e.code === 'ShiftLeft') keys.shift = false;
+    });
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+    updateHUD();
+  </script>
+</body>
+</html>

@@ -307,6 +307,7 @@
     const aimDir = new THREE.Vector3();
     const tmpVec = new THREE.Vector3();
     let shotCooldown = 0;
+    let lastTick = performance.now();
 
     function building(x, z, w, h, d, color) {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, metalness: 0.2, roughness: 0.78 }));
@@ -387,8 +388,8 @@
       }
     }
 
-    function spawnHitEffect(pos) {
-      const spark = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), new THREE.MeshBasicMaterial({ color: 0xffe6ba }));
+    function spawnHitEffect(pos, color = 0xffe6ba) {
+      const spark = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 10), new THREE.MeshBasicMaterial({ color }));
       spark.position.copy(pos);
       spark.userData.life = 0.2;
       scene.add(spark);
@@ -471,12 +472,15 @@
       scoreEl.textContent = `Episodes completed: ${episodes}`;
     }
 
-    function animate() {
+    function animate(now = performance.now()) {
       requestAnimationFrame(animate);
+      const dt = Math.min(0.05, (now - lastTick) / 1000 || 0.016);
+      const frameScale = dt / 0.016;
+      lastTick = now;
 
-      const speed = move.sprint && stamina > 0 ? 0.17 : 0.1;
-      if (move.sprint && (move.f || move.b || move.l || move.r)) stamina -= 0.2;
-      else stamina += 0.1;
+      const speed = (move.sprint && stamina > 0 ? 0.17 : 0.1) * frameScale;
+      if (move.sprint && (move.f || move.b || move.l || move.r)) stamina -= 0.2 * frameScale;
+      else stamina += 0.1 * frameScale;
       stamina = Math.min(100, Math.max(0, stamina));
 
       velocity.set(0, 0, 0);
@@ -487,11 +491,11 @@
       controls.moveRight(velocity.x);
       controls.moveForward(velocity.z);
 
-      shotCooldown = Math.max(0, shotCooldown - 0.016);
+      shotCooldown = Math.max(0, shotCooldown - dt);
 
       for (let i = bullets.length - 1; i >= 0; i--) {
         const line = bullets[i];
-        line.userData.life -= 0.016;
+        line.userData.life -= dt;
         if (line.userData.life <= 0) {
           scene.remove(line);
           bullets.splice(i, 1);
@@ -500,7 +504,7 @@
 
       for (let i = hitEffects.length - 1; i >= 0; i--) {
         const h = hitEffects[i];
-        h.userData.life -= 0.016;
+        h.userData.life -= dt;
         h.scale.multiplyScalar(0.9);
         if (h.userData.life <= 0) {
           scene.remove(h);
@@ -512,17 +516,17 @@
         const e = enemies[i];
         const data = e.userData;
         if (data.hitFlash > 0) {
-          data.hitFlash -= 0.016;
+          data.hitFlash -= dt;
           e.material.emissive.setRGB(0.5, 0.08, 0.08);
         } else {
           e.material.emissive.setRGB(0, 0, 0);
         }
 
         if (data.dead) {
-          data.fall += 0.04;
-          data.deathTimer -= 0.016;
+          data.fall += 0.04 * frameScale;
+          data.deathTimer -= dt;
           e.rotation.z = Math.min(Math.PI / 2, data.fall);
-          e.position.y = Math.max(0.55, e.position.y - 0.03);
+          e.position.y = Math.max(0.55, e.position.y - 0.03 * frameScale);
           if (data.deathTimer <= 0) {
             scene.remove(e);
             enemies.splice(i, 1);
@@ -537,7 +541,7 @@
 
         if (data.knock.lengthSq() > 0.0001) {
           e.position.add(data.knock);
-          data.knock.multiplyScalar(0.78);
+          data.knock.multiplyScalar(Math.pow(0.78, frameScale));
         }
 
         tmpVec.subVectors(camera.position, e.position);
@@ -545,14 +549,14 @@
         tmpVec.normalize();
 
         if (data.recoil > 0) {
-          data.recoil -= 0.016;
-          e.position.addScaledVector(tmpVec, -0.02);
+          data.recoil -= dt;
+          e.position.addScaledVector(tmpVec, -0.02 * frameScale);
         } else if (dist > 3) {
-          e.position.addScaledVector(tmpVec, 0.03);
+          e.position.addScaledVector(tmpVec, 0.03 * frameScale);
         }
 
         if (dist < 32) {
-          data.attackCooldown -= 0.016;
+          data.attackCooldown -= dt;
           if (data.attackCooldown <= 0) {
             const orb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff5757 }));
             orb.position.copy(e.position).add(new THREE.Vector3(0, 0.65, 0));
@@ -562,7 +566,7 @@
             orb.userData.life = 2.5;
             scene.add(orb);
             enemyBullets.push(orb);
-            spawnHitEffect(orb.position);
+            spawnHitEffect(orb.position, 0xff8f8f);
             data.attackCooldown = 0.65 + Math.random() * 0.75;
           }
         }
@@ -572,15 +576,15 @@
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const b = enemyBullets[i];
         b.position.add(b.userData.vel);
-        b.userData.life -= 0.016;
+        b.userData.life -= dt;
         if (b.position.distanceTo(camera.position) < 0.8) {
           health -= 4;
-          spawnHitEffect(b.position);
+          spawnHitEffect(b.position, 0xff8f8f);
           scene.remove(b);
           enemyBullets.splice(i, 1);
           continue;
         }
-        if (b.userData.life <= 0) {
+        if (Math.abs(b.position.x) > 340 || Math.abs(b.position.z) > 340 || b.userData.life <= 0) {
           scene.remove(b);
           enemyBullets.splice(i, 1);
         }
@@ -592,8 +596,10 @@
         camera.position.set(0, 1.8, 8);
         enemies.forEach(e => scene.remove(e));
         enemyBullets.forEach(e => scene.remove(e));
+        hitEffects.forEach(h => scene.remove(h));
         enemies.length = 0;
         enemyBullets.length = 0;
+        hitEffects.length = 0;
         activeMission = null;
         objective.textContent = 'Downed. Recovered by ICEB medical unit. Press E near kiosk for a new standalone episode.';
       }

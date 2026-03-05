@@ -306,6 +306,7 @@
     const raycaster = new THREE.Raycaster();
     const aimDir = new THREE.Vector3();
     const tmpVec = new THREE.Vector3();
+    const tmpVec2 = new THREE.Vector3();
     let shotCooldown = 0;
     let lastTick = performance.now();
 
@@ -381,7 +382,8 @@
           deathTimer: 0,
           fall: 0,
           knock: new THREE.Vector3(),
-          recoil: 0
+          recoil: 0,
+          reactionDelay: 0
         };
         scene.add(body);
         enemies.push(body);
@@ -431,6 +433,7 @@
         target.userData.hp -= 1;
         target.userData.hitFlash = 0.15;
         target.userData.recoil = 0.18;
+        target.userData.reactionDelay = 0.14;
         target.userData.knock.copy(aimDir).multiplyScalar(0.28);
         spawnHitEffect(hit.point);
         if (target.userData.hp <= 0) killEnemy(target);
@@ -539,6 +542,8 @@
           continue;
         }
 
+        if (data.reactionDelay > 0) data.reactionDelay -= dt;
+
         if (data.knock.lengthSq() > 0.0001) {
           e.position.add(data.knock);
           data.knock.multiplyScalar(Math.pow(0.78, frameScale));
@@ -555,14 +560,14 @@
           e.position.addScaledVector(tmpVec, 0.03 * frameScale);
         }
 
-        if (dist < 32) {
+        if (dist < 32 && data.reactionDelay <= 0) {
           data.attackCooldown -= dt;
           if (data.attackCooldown <= 0) {
             const orb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff5757 }));
             orb.position.copy(e.position).add(new THREE.Vector3(0, 0.65, 0));
             const spread = new THREE.Vector3((Math.random()-0.5)*0.06, (Math.random()-0.5)*0.04, (Math.random()-0.5)*0.06);
             const shotDir = tmpVec.clone().add(spread).normalize();
-            orb.userData.vel = shotDir.multiplyScalar(0.7);
+            orb.userData.vel = shotDir.multiplyScalar(43);
             orb.userData.life = 2.5;
             scene.add(orb);
             enemyBullets.push(orb);
@@ -575,9 +580,16 @@
 
       for (let i = enemyBullets.length - 1; i >= 0; i--) {
         const b = enemyBullets[i];
-        b.position.add(b.userData.vel);
+        tmpVec2.copy(b.position);
+        b.position.addScaledVector(b.userData.vel, dt);
         b.userData.life -= dt;
-        if (b.position.distanceTo(camera.position) < 0.8) {
+        const impactRadius = 0.85;
+        const toPlayer = camera.position.clone().sub(tmpVec2);
+        const seg = b.position.clone().sub(tmpVec2);
+        const segLenSq = Math.max(0.0001, seg.lengthSq());
+        const t = Math.max(0, Math.min(1, toPlayer.dot(seg) / segLenSq));
+        const closestPoint = tmpVec2.add(seg.multiplyScalar(t));
+        if (closestPoint.distanceTo(camera.position) < impactRadius) {
           health -= 4;
           spawnHitEffect(b.position, 0xff8f8f);
           scene.remove(b);

@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dictation Generation Tool</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --ink: #1a2233;
+      --muted: #52607a;
+      --accent: #2f6fed;
+      --border: #dce4f2;
+      --ok: #168a4f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      line-height: 1.45;
+    }
+    .wrap {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px 28px;
+    }
+    h1 { margin-bottom: 6px; }
+    .subtitle { color: var(--muted); margin-top: 0; }
+    .grid {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      gap: 16px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      box-shadow: 0 2px 8px rgba(13,36,86,.06);
+    }
+    label { font-weight: 700; font-size: .95rem; }
+    select, button, textarea, input {
+      width: 100%;
+      margin-top: 8px;
+      margin-bottom: 12px;
+      padding: 10px;
+      border: 1px solid #b7c3d8;
+      border-radius: 8px;
+      font: inherit;
+    }
+    button {
+      cursor: pointer;
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+      font-weight: 700;
+    }
+    button.secondary {
+      background: #eef3ff;
+      color: #214180;
+      border-color: #bfd0ff;
+    }
+    .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .pill {
+      display: inline-block;
+      background: #ecf9f1;
+      color: var(--ok);
+      border: 1px solid #afe3c6;
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: .85rem;
+      margin-bottom: 8px;
+    }
+    .output-box { min-height: 120px; white-space: pre-wrap; }
+    .list-columns {
+      display: grid;
+      grid-template-columns: repeat(3,minmax(0,1fr));
+      gap: 10px;
+    }
+    .list-columns h3 { margin-bottom: 8px; font-size: 1rem; }
+    ul { margin: 6px 0 0 18px; padding: 0; }
+    .typing textarea { min-height: 120px; }
+    .small { color: var(--muted); font-size: .9rem; }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .list-columns { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>HTML Dictation Generation Tool</h1>
+    <p class="subtitle">Generate words, phrases, and sentences from staged phonics lists, then type what you hear.</p>
+
+    <div class="grid">
+      <section class="card controls">
+        <label for="stage">Choose list stage</label>
+        <select id="stage">
+          <option value="1">List 1: s, ss, a, t, i, p, n</option>
+          <option value="2">List 2: List 1 + c, k, ck, e, h, r, m, d</option>
+          <option value="3">List 3: List 2 + g, o, u, l, ll, f, ff, b</option>
+        </select>
+
+        <label for="type">Choose dictation type</label>
+        <select id="type">
+          <option value="words">Words</option>
+          <option value="phrases">Phrases</option>
+          <option value="sentences">Sentences</option>
+        </select>
+
+        <label for="count">How many items</label>
+        <input id="count" type="number" min="1" max="20" value="5" />
+
+        <div class="button-row">
+          <button id="generateBtn">Generate</button>
+          <button class="secondary" id="speakBtn">Speak</button>
+        </div>
+
+        <button class="secondary" id="clearBtn">Clear typed answer</button>
+      </section>
+
+      <section class="card">
+        <span class="pill" id="currentMode">Ready</span>
+        <h2>Dictation Output</h2>
+        <div id="output" class="output-box">Click “Generate” to create a dictation set.</div>
+
+        <div class="typing">
+          <h2>Type what you hear</h2>
+          <textarea id="typed" placeholder="Type your dictation here..."></textarea>
+          <div class="small">Tip: Click “Speak” to read the generated text out loud using your browser speech voice.</div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:16px;">
+      <h2>Pre-made Word/Phrase/Sentence Lists</h2>
+      <div class="list-columns">
+        <div>
+          <h3>List 1</h3>
+          <div class="small">s, ss /s/ · a /a/ · t /t/ · i /i/ · p /p/ · n /n/</div>
+          <ul id="view1"></ul>
+        </div>
+        <div>
+          <h3>List 2</h3>
+          <div class="small">List 1 + c, k, ck /k/ · e /e/ · h /h/ · r /r/ · m /m/ · d /d/</div>
+          <ul id="view2"></ul>
+        </div>
+        <div>
+          <h3>List 3</h3>
+          <div class="small">List 2 + g /g/ · o /o/ · u /u/ · l, ll /l/ · f, ff /f/ · b /b/</div>
+          <ul id="view3"></ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const DATA = {
+      1: {
+        words: ["sat", "sit", "sap", "sip", "pin", "pan", "tap", "tin", "pit", "spin", "snip", "pins", "naps", "taps", "sits"],
+        phrases: ["a tin pan", "six pins", "tap tap", "sit in", "a snap", "a fast sip", "a spin", "in a pit"],
+        sentences: ["Sam sits in a pit.", "Pat taps a pan.", "Nan has six pins.", "I sit and sip.", "The pan is in a sack."]
+      },
+      2: {
+        words: ["cat", "kit", "kick", "deck", "red", "hen", "ham", "rim", "mask", "sand", "rack", "drip", "stamp", "mend", "camp"],
+        phrases: ["a red hen", "kick the can", "ten damp mats", "a sand deck", "rim and rack", "a quick tap", "ham in a pan", "sit and mend"],
+        sentences: ["The red hen sits on a deck.", "Kim can kick a can.", "Dad has a damp mask.", "Sam and Ken camp.", "The cat is in the sand."]
+      },
+      3: {
+        words: ["fog", "log", "bell", "full", "buff", "gull", "blob", "club", "frog", "muffin", "gob", "flap", "bunk", "gold", "luck"],
+        phrases: ["a big log", "full of fun", "the bell fell", "a black club", "run to the bus", "a soft muff", "frog on a rock", "big red bun"],
+        sentences: ["Bob will grab the black club.", "The frog sits on a log.", "Gus has a full backpack.", "The bell fell in the mud.", "Mia and Rob run to the bus."]
+      }
+    };
+
+    const stage = document.getElementById('stage');
+    const type = document.getElementById('type');
+    const count = document.getElementById('count');
+    const output = document.getElementById('output');
+    const typed = document.getElementById('typed');
+    const currentMode = document.getElementById('currentMode');
+
+    function sampleItems(arr, n) {
+      const clone = [...arr];
+      for (let i = clone.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [clone[i], clone[j]] = [clone[j], clone[i]];
+      }
+      return clone.slice(0, Math.min(n, clone.length));
+    }
+
+    function generate() {
+      const s = stage.value;
+      const t = type.value;
+      const n = Math.max(1, Math.min(20, Number(count.value) || 5));
+      const picked = sampleItems(DATA[s][t], n);
+      output.textContent = picked.join('\n');
+      currentMode.textContent = `Generated: List ${s} · ${t} · ${picked.length} item(s)`;
+    }
+
+    function speak() {
+      const text = output.textContent.trim();
+      if (!text || text.includes('Click “Generate”')) return;
+      if (!('speechSynthesis' in window)) {
+        alert('Speech synthesis is not available in this browser.');
+        return;
+      }
+      window.speechSynthesis.cancel();
+      const lines = text.split('\n').filter(Boolean);
+      lines.forEach((line, idx) => {
+        const utter = new SpeechSynthesisUtterance(line);
+        utter.rate = 0.85;
+        utter.pitch = 1;
+        utter.lang = 'en-US';
+        utter.volume = 1;
+        utter.onend = () => {
+          if (idx < lines.length - 1) {
+            const pause = new SpeechSynthesisUtterance('...');
+            pause.volume = 0;
+            window.speechSynthesis.speak(pause);
+          }
+        };
+        window.speechSynthesis.speak(utter);
+      });
+    }
+
+    function fillViews() {
+      [1,2,3].forEach(level => {
+        const v = document.getElementById(`view${level}`);
+        const preview = DATA[level].words.slice(0, 8).join(', ');
+        v.innerHTML = `<li><strong>Word samples:</strong> ${preview}</li>
+          <li><strong>Phrase samples:</strong> ${DATA[level].phrases.slice(0,2).join(' · ')}</li>
+          <li><strong>Sentence samples:</strong> ${DATA[level].sentences.slice(0,1)[0]}</li>`;
+      });
+    }
+
+    document.getElementById('generateBtn').addEventListener('click', generate);
+    document.getElementById('speakBtn').addEventListener('click', speak);
+    document.getElementById('clearBtn').addEventListener('click', () => typed.value = '');
+
+    fillViews();
+  </script>
+</body>
+</html>

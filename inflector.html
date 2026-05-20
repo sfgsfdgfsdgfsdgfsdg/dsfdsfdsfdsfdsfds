@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Word Inflector</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 680px; margin: 40px auto; padding: 0 16px; }
+    input, button { font-size: 1rem; padding: 8px; }
+    #result { margin-top: 14px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Word Inflector</h1>
+  <p>Enter a singular noun to get a simple plural form.</p>
+
+  <input id="word" type="text" placeholder="e.g. baby" />
+  <button id="go">Inflect</button>
+
+  <div id="result"></div>
+
+  <script>
+    function inflectPlural(word) {
+      if (!word) return "";
+
+      const lower = word.toLowerCase();
+      const irregulars = {
+        child: "children",
+        person: "people",
+        mouse: "mice",
+        goose: "geese",
+        man: "men",
+        woman: "women"
+      };
+
+      if (irregulars[lower]) return irregulars[lower];
+      if (/(s|x|z|ch|sh)$/i.test(word)) return word + "es";
+      if (/[^aeiou]y$/i.test(word)) return word.slice(0, -1) + "ies";
+      return word + "s";
+    }
+
+    const wordInput = document.getElementById("word");
+    const result = document.getElementById("result");
+
+    document.getElementById("go").addEventListener("click", () => {
+      const singular = wordInput.value.trim();
+      if (!singular) {
+        result.textContent = "Please enter a word.";
+        return;
+      }
+
+      result.textContent = `${singular} → ${inflectPlural(singular)}`;
+    });
+
+    wordInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") document.getElementById("go").click();
+    });
+  </script>
+</body>
+</html>

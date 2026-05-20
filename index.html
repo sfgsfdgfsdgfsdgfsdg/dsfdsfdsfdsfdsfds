@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Readability Score Checker</title>
+  <style>
+    :root {
+      font-family: Arial, sans-serif;
+      color: #1f2937;
+      background: #f3f4f6;
+    }
+
+    body {
+      margin: 0;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+      padding: 1.5rem;
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.6rem;
+    }
+
+    p.helper {
+      margin-top: 0;
+      color: #4b5563;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      padding: 0.9rem;
+      font-size: 1rem;
+      resize: vertical;
+      box-sizing: border-box;
+    }
+
+    .actions {
+      margin-top: 1rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 0.65rem 1rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+    }
+
+    button.secondary {
+      background: #6b7280;
+    }
+
+    .results {
+      margin-top: 1.5rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 0.75rem;
+    }
+
+    .card {
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 0.9rem;
+      background: #f9fafb;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 0.9rem;
+      color: #374151;
+      font-weight: 600;
+    }
+
+    .card p {
+      margin: 0.4rem 0 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .rating {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 8px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+    }
+
+    code {
+      background: #f3f4f6;
+      padding: 0.2rem 0.35rem;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1>HTML Readability Score Checker</h1>
+    <p class="helper">Paste any text and calculate a readability score using average words per sentence, word difficulty, and total sentence count.</p>
+
+    <textarea id="textInput" placeholder="Paste content here..."></textarea>
+
+    <div class="actions">
+      <button id="analyzeBtn">Check Readability</button>
+      <button id="sampleBtn" class="secondary">Load Sample Text</button>
+    </div>
+
+    <section class="results" aria-live="polite">
+      <article class="card">
+        <h2>Total Sentences</h2>
+        <p id="sentenceCount">0</p>
+      </article>
+      <article class="card">
+        <h2>Total Words</h2>
+        <p id="wordCount">0</p>
+      </article>
+      <article class="card">
+        <h2>Avg Words / Sentence</h2>
+        <p id="avgWordsPerSentence">0</p>
+      </article>
+      <article class="card">
+        <h2>Difficult Words (%)</h2>
+        <p id="difficultWordPct">0%</p>
+      </article>
+      <article class="card">
+        <h2>Readability Score</h2>
+        <p id="readabilityScore">0</p>
+      </article>
+    </section>
+
+    <section class="rating">
+      <strong>Interpretation:</strong>
+      <span id="interpretation">Add text and click <code>Check Readability</code>.</span>
+    </section>
+  </main>
+
+  <script>
+    const textInput = document.getElementById('textInput');
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const sampleBtn = document.getElementById('sampleBtn');
+
+    const sentenceCountEl = document.getElementById('sentenceCount');
+    const wordCountEl = document.getElementById('wordCount');
+    const avgWordsPerSentenceEl = document.getElementById('avgWordsPerSentence');
+    const difficultWordPctEl = document.getElementById('difficultWordPct');
+    const readabilityScoreEl = document.getElementById('readabilityScore');
+    const interpretationEl = document.getElementById('interpretation');
+
+    function tokenizeWords(text) {
+      return (text.toLowerCase().match(/[a-z']+/g) || []).filter(Boolean);
+    }
+
+    function splitSentences(text) {
+      const parts = text
+        .replace(/\s+/g, ' ')
+        .trim()
+        .split(/[.!?]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      return parts;
+    }
+
+    function difficultWordRatio(words) {
+      if (!words.length) {
+        return 0;
+      }
+
+      const difficult = words.filter((word) => word.replace(/'/g, '').length >= 7);
+      return difficult.length / words.length;
+    }
+
+    function computeReadability(text) {
+      const words = tokenizeWords(text);
+      const sentences = splitSentences(text);
+
+      const wordCount = words.length;
+      const sentenceCount = sentences.length;
+      const avgWordsPerSentence = sentenceCount ? wordCount / sentenceCount : 0;
+      const diffRatio = difficultWordRatio(words);
+
+      // Weighted score where higher means harder to read.
+      const score =
+        avgWordsPerSentence * 1.2 +
+        diffRatio * 100 * 0.6 +
+        Math.log10(sentenceCount + 1) * 8;
+
+      return {
+        wordCount,
+        sentenceCount,
+        avgWordsPerSentence,
+        diffRatio,
+        score
+      };
+    }
+
+    function describeScore(score) {
+      if (score < 20) {
+        return 'Very easy to read (elementary level).';
+      }
+      if (score < 35) {
+        return 'Easy to read (middle school level).';
+      }
+      if (score < 50) {
+        return 'Moderately difficult (high school level).';
+      }
+      if (score < 65) {
+        return 'Difficult (college level).';
+      }
+      return 'Very difficult (advanced academic/professional level).';
+    }
+
+    function renderResults(result) {
+      sentenceCountEl.textContent = String(result.sentenceCount);
+      wordCountEl.textContent = String(result.wordCount);
+      avgWordsPerSentenceEl.textContent = result.avgWordsPerSentence.toFixed(2);
+      difficultWordPctEl.textContent = `${(result.diffRatio * 100).toFixed(2)}%`;
+      readabilityScoreEl.textContent = result.score.toFixed(2);
+      interpretationEl.textContent = describeScore(result.score);
+    }
+
+    analyzeBtn.addEventListener('click', () => {
+      renderResults(computeReadability(textInput.value));
+    });
+
+    sampleBtn.addEventListener('click', () => {
+      textInput.value = 'The cat sat on the mat. It watched the birds outside. Meanwhile, the neighborhood philosopher contemplated paradoxes, existential frameworks, and interdisciplinary methodologies.';
+      renderResults(computeReadability(textInput.value));
+    });
+  </script>
+</body>
+</html>

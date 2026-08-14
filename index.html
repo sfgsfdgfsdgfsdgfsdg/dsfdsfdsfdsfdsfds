@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Operation Obsidian Barrel</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="menu" class="overlay">
+    <canvas id="introCanvas" width="1280" height="720" aria-label="Gun barrel intro"></canvas>
+    <div id="menuContent" class="hidden">
+      <h1>Operation Obsidian Barrel</h1>
+      <p>
+        Agent: <strong>Nadia Bond</strong> (<strong>007</strong>) — Southeast Asian field operative in a black tuxedo,
+        red poppy boutonnière, and tactical sunglasses.
+      </p>
+      <p>
+        Sidekick: <strong>Nyx</strong>, a panther-shaped stealth robot that can transform into a compact helicopter scout.
+      </p>
+      <ul>
+        <li>W/A/S/D: Move</li>
+        <li>Mouse or ←/→: Aim</li>
+        <li>Click or Space: Fire</li>
+        <li>H: Transform Nyx (Panther/Helicopter mode)</li>
+      </ul>
+      <button id="startBtn">Start Mission</button>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div class="hud-row">
+      <span id="agentLabel">Nadia Bond 007</span>
+      <span id="modeLabel">Nyx Mode: Panther</span>
+      <span id="ammoLabel">Ammo: ∞</span>
+      <span id="targetLabel">Targets: 0</span>
+    </div>
+  </div>
+
+  <div id="protocolNotice" class="protocol-notice hidden" role="status" aria-live="polite">
+    Running from a <code>file://</code> URL can trigger browser security-origin errors. For best results, run this game from a local web server (for example: <code>python -m http.server</code>).
+  </div>
+
+  <canvas id="gameCanvas" width="1280" height="720" aria-label="First person shooter game view"></canvas>
+  <div id="crosshair" class="hidden"></div>
+
+  <script src="game.js"></script>
+</body>
+</html>
